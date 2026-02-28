@@ -11,7 +11,7 @@ export default function Navbar() {
         {/* Logo */}
         <Link href="/" className="text-gray-800 text-2xl font-bold">
           <img
-            className="w-auto h-12 md:h-[82px] md:w-[93.88px]"
+            className="w-auto h-12 md:h-[82px] object-contain"
             src="/images/logo.png"
             alt="pathOS Logo"
           />
