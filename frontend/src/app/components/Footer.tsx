@@ -5,8 +5,11 @@ export default function Footer() {
     <footer className="bg-white text-gray-600 py-12 shadow-[inset_0_8px_8px_-8px_rgba(0,0,0,0.5)]">
       <div className="max-w-6xl mx-auto px-4 grid grid-cols-1 md:grid-cols-4 py-8">
         <div>
-          <h3 className="poppins-bold text-gray-800 text-lg font-bold ">
-            ASPHALT
+          <h3 className="text-2xl mb-1">
+            <span className="poppins-semibold">
+              <span className="pathos-green">path</span>
+              <span className="text-[#6D6D6D]">OS</span>
+            </span>
           </h3>
           <p className="text-base poppins-regular">
             Smarter transport, lower emissions, lasting impact
@@ -24,7 +27,7 @@ export default function Footer() {
             </li>
             <li>
               <Link
-                href="/about"
+                href="/explore"
                 className="hover:text-gray-800 transition-colors"
               >
                 Routes
@@ -97,17 +100,11 @@ export default function Footer() {
         <div>
           <img
             src="/images/project-of-the-year.png"
-            alt="Aspahlt: Sustainability Project of the Year Award 2025"
+            alt="pathOS: Sustainability Project of the Year Award 2025"
           />
         </div>
       </div>
 
-      {/* Copyright */}
-      <div className="max-w-6xl mx-auto px-4 mt-8 pt-8 border-t border-gray-200">
-        <p className="text-sm text-center">
-          © {new Date().getFullYear()} Asphalt. All rights reserved.
-        </p>
-      </div>
     </footer>
   );
 }

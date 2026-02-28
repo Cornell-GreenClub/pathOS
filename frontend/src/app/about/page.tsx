@@ -11,11 +11,11 @@ const AboutPage = () => {
           <div className="w-full md:w-1/2 pr-[90px]">
             <h1 className="poppins-bold text-5xl text-gray-900 leading-tight">
               Rethinking
-              <span className="asphalt-green"> Waste Transport</span>
+              <span className="pathos-green"> Waste Transport</span>
             </h1>
             <p className="poppins-regular text-xl text-gray-700 pt-[30px]">
-              Asphalt is a student-led project driven by a shared goal: reducing
-              waste emissions through smarter logistics.
+              pathOS is a student-led project driven by a shared goal: reducing
+              waste emissions through smarter routing.
               <br />
               <br />
               Our interdisciplinary team comes together to build a tool that is
@@ -27,7 +27,7 @@ const AboutPage = () => {
 
           <div className="w-full md:w-1/2 p-4 flex items-center justify-center">
             <img
-              src="/images/asphalt-subteam.jpg"
+              src="/images/pathos-subteam.jpg"
               alt="Temporary Image"
               className="max-w-full h-auto transform transition-all duration-300 hover:scale-105"
             />
@@ -38,7 +38,7 @@ const AboutPage = () => {
         <section className="flex flex-col md:flex-row justify-center p-[49px] pt-[97px]">
           <div className="w-full md:w-1/2 p-4 flex items-center justify-center">
             <img
-              src="/images/asphalt-graphic.png"
+              src="/images/pathos-graphic.png"
               alt="Temporary Image"
               className="max-w-full h-auto transform transition-all duration-300 hover:scale-105"
             />
@@ -47,7 +47,7 @@ const AboutPage = () => {
           <div className="w-full md:w-1/2 p-[49px] pl-[90px]">
             <h1 className="poppins-bold text-5xl text-gray-900 leading-tight">
               Making
-              <span className="asphalt-green"> Impact </span>
+              <span className="pathos-green"> Impact </span>
               Actionable
             </h1>
             <p className="poppins-regular text-xl text-gray-700 pt-[30px]">
@@ -75,7 +75,7 @@ const AboutPage = () => {
       >
         <div className="flex items-center justify-center flex-col py-[90px]">
           <h1 className="poppins-bold text-5xl text-gray-900 leading-tight">
-            System <span className="asphalt-green">Architecture</span>
+            System <span className="pathos-green">Architecture</span>
           </h1>
           <p className="poppins-regular text-xl text-gray-700 pt-[20px] text-center">
             A modular, data-driven platform for emissions-optimized <br />

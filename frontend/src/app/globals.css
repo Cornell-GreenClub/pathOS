@@ -123,11 +123,19 @@ input:-webkit-autofill:focus {
   animation: fade-in-up 1s ease-out;
 }
 
-.asphalt-green {
-  color: #034626;
+.pathos-green {
+    color: #034626; /* Deep forest green */
 }
 
-.asphalt-green-hover:hover {
+.pathos-green-hover:hover {
+    color: #046b3a; /* Lighter green on hover */
+    /* text-shadow: 0 0 5px rgba(3, 70, 38, 0.5); Slight glow effect */
+}
+
+.pathos-light-green {
+    color: #e6fced; /* Very light green for backgrounds or subtle text */
+}
+
+.pathos-dark-green-hover:hover {
   color: #218c3a;
 }
-

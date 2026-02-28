@@ -12,8 +12,8 @@ export default function Navbar() {
         <Link href="/" className="text-gray-800 text-2xl font-bold">
           <img
             className="w-auto h-12 md:h-[82px] md:w-[93.88px]"
-            src="/images/logoo.png"
-            alt="Asphalt Logo"
+            src="/images/logo.png"
+            alt="pathOS Logo"
           />
         </Link>
 

@@ -30,7 +30,7 @@ const poppinsSemibold = localFont({
 });
 
 export const metadata: Metadata = {
-  title: 'Asphalt',
+  title: 'pathOS',
   description: 'Smarter routes, greener future',
 };
 
@@ -41,9 +41,10 @@ export default function RootLayout({
 }>) {
   return (
     <>
-      <html lang="en">
+      <html lang="en" suppressHydrationWarning>
         <body
           className={`${poppins.variable} ${poppinsBold.variable} ${poppinsMedium.variable} ${poppinsExtraBold.variable} ${poppinsSemibold.variable} antialiased`}
+          suppressHydrationWarning
         >
           {children}
           <BackendWakeup />

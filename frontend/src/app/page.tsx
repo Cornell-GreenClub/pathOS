@@ -14,12 +14,15 @@ export default function HomePage() {
           <div className="md:w-1/2 p-4 md:p-12 text-left">
             <div>
               <h1 className="text-4xl md:text-7xl font-extrabold mb-8 animate-fade-in-down text-gray-900">
-                <span className="poppins-extrabold">ASPHALT</span>
+                <span className="poppins-semibold">
+                  <span className="pathos-green">path</span>
+                  <span className="text-[#6D6D6D]">OS</span>
+                </span>
                 <br />
-                <div className="poppins-medium text-3xl md:text-6xl text-gray-800">
-                  <span className="asphalt-green">Smarter</span> Routes,
+                <div className="poppins-medium text-3xl md:text-6xl text-gray-900 mt-[5px]">
+                  Smarter <span className="pathos-green">Routes,</span>
                   <br />
-                  Greener <span className="asphalt-green">Future</span>
+                  <span className="pathos-green">Greener</span> Future
                 </div>
               </h1>
               <p className="text-xl text-gray-700 animate-fade-in-up">
@@ -35,7 +38,7 @@ export default function HomePage() {
                 </button>
               </Link>
               <Link href="/about">
-                <button className="border border-2 border-[#034626] asphalt-green hover:bg-[#034626] hover:text-white poppins-bold text-xl py-3 px-6 rounded-xl transform transition-all hover:scale-105">
+                <button className="border border-2 border-[#034626] pathos-green hover:bg-[#034626] hover:text-white poppins-bold text-xl py-3 px-6 rounded-xl transform transition-all hover:scale-105">
                   About Us
                 </button>
               </Link>
@@ -76,7 +79,7 @@ export default function HomePage() {
           {/* Stepper Section */}
           <section className="w-full md:w-auto ml-16">
             <h1 className="poppins-bold text-left text-[48px] font-bold mb-8 text-gray-900">
-              Explore Our <span className="asphalt-green">Road</span> Network
+              Explore Our <span className="pathos-green">Road</span> Network
             </h1>
             <div className="relative max-w-4xl mx-auto">
               {/* Vertical Line */}
@@ -209,7 +212,7 @@ export default function HomePage() {
               Routes Today
             </h2>
             <p className="mb-8 text-gray-600">
-              Join the growing number of organizations using Asphalt to reduce
+              Join the growing number of organizations using pathOS to reduce
               their carbon footprint
             </p>
             <Link href="/explore">

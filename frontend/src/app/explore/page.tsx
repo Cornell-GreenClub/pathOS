@@ -407,16 +407,16 @@ const ExplorePage = () => {
           {!isMapView ? (
             <div className="w-full max-w-4xl mx-auto flex flex-col items-center px-2 sm:px-4 md:px-8">
               <h1 className="text-[52px] poppins-bold text-center leading-tight mb-10 text-gray-900 animate-fade-in-down">
-                <span className="asphalt-green">Explore</span>{' '}
+                <span className="pathos-green">Explore</span>{' '}
                 <span className="text-black">Your New Route to</span>
                 <br />
-                <span className="asphalt-green mt-2 inline-block">
+                <span className="pathos-green mt-2 inline-block">
                   Sustainability
                 </span>
               </h1>
               <p className="text-gray-600 text-sm italic -mt-6 mb-8 poppins-regular">
                 {/* *We currently only support routes within the state of New York */}
-                *Backend is offline to reduce costs over winter break
+                *Backend is currently deactivated to reduce costs
               </p>
               <form
                 onSubmit={handleSubmit}
@@ -544,7 +544,7 @@ const ExplorePage = () => {
                   <button
                     type="button"
                     onClick={loadPresetRoute}
-                    className="border-2 border-[#034626] asphalt-green poppins-semibold text-xl py-1.5 px-4 rounded-xl transform transition-all hover:scale-105 w-full sm:w-auto"
+                    className="border-2 border-[#034626] pathos-green poppins-semibold text-xl py-1.5 px-4 rounded-xl transform transition-all hover:scale-105 w-full sm:w-auto"
                   >
                     Load sample schools route
                   </button>
@@ -571,7 +571,7 @@ const ExplorePage = () => {
                 <div className="w-full flex flex-col gap-2 mt-10">
                   <h3 className="text-4xl text-center mb-2 text-gray-800 poppins-bold">
                     Tell Us About Your{' '}
-                    <span className="asphalt-green">Vehicle</span>
+                    <span className="pathos-green">Vehicle</span>
                   </h3>
                   <div className="grid grid-cols-3 gap-4 w-full mt-2">
                     <div className="flex flex-col">
@@ -643,7 +643,7 @@ const ExplorePage = () => {
           )}
         </div>
       </div>
-      <div className="mt-32">
+      <div className="hidden md:block mt-32">
         <Footer />
       </div>
     </main>
