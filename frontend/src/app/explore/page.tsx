@@ -406,7 +406,7 @@ const ExplorePage = () => {
         <div className="relative z-10 flex flex-col items-center justify-center w-full py-8 pb-24">
           {!isMapView ? (
             <div className="w-full max-w-4xl mx-auto flex flex-col items-center px-2 sm:px-4 md:px-8">
-              <h1 className="text-[52px] poppins-bold text-center leading-tight mb-10 text-gray-900 animate-fade-in-down">
+              <h1 className="text-4xl sm:text-[44px] md:text-[52px] poppins-bold text-center leading-tight mb-10 text-gray-900 animate-fade-in-down">
                 <span className="pathos-green">Explore</span>{' '}
                 <span className="text-black">Your New Route to</span>
                 <br />

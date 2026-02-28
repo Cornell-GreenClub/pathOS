@@ -124,16 +124,15 @@ input:-webkit-autofill:focus {
 }
 
 .pathos-green {
-    color: #034626; /* Deep forest green */
+    color: #034626; 
 }
 
 .pathos-green-hover:hover {
-    color: #046b3a; /* Lighter green on hover */
-    /* text-shadow: 0 0 5px rgba(3, 70, 38, 0.5); Slight glow effect */
+    color: #046b3a; 
 }
 
 .pathos-light-green {
-    color: #e6fced; /* Very light green for backgrounds or subtle text */
+    color: #e6fced; 
 }
 
 .pathos-dark-green-hover:hover {
