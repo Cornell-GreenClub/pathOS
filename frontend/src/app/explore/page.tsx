@@ -237,7 +237,7 @@ const ExplorePage = () => {
         .join(';');
 
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_OSRM_URL || 'http://127.0.0.1:5001'}/route/v1/driving/${coordinates}?overview=full&geometries=geojson`
+        `${process.env.NEXT_PUBLIC_OSRM_URL || 'http://127.0.0.1:5000'}/route/v1/driving/${coordinates}?overview=full&geometries=geojson`
       );
       const data = await response.json();
       if (data.routes && data.routes.length > 0) {

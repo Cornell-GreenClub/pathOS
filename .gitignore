@@ -40,4 +40,7 @@ backend/venv
 *.tsbuildinfo
 next-env.d.ts
 
+# osrm
+osrm-ny/
+
 .env
