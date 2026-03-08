@@ -6,9 +6,9 @@ export default function Footer() {
       <div className="max-w-6xl mx-auto px-4 grid grid-cols-1 md:grid-cols-4 gap-8 md:gap-0 py-8">
         <div>
           <h3 className="text-2xl mb-1">
-            <span className="poppins-semibold">
+            <span className="poppins-extrabold">
               <span className="pathos-green">path</span>
-              <span className="text-[#6D6D6D]">OS</span>
+              <span className="text-black">OS</span>
             </span>
           </h3>
           <p className="text-base poppins-regular">
