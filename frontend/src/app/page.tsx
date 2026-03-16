@@ -16,7 +16,7 @@ export default function HomePage() {
               <h1 className="text-4xl md:text-7xl font-extrabold mb-8 animate-fade-in-down text-gray-900">
                 <span className="poppins-semibold">
                   <span className="pathos-green">path</span>
-                  <span className="text-black">OS</span>
+                  <span className="text-[#6D6D6D]">OS</span>
                 </span>
                 <br />
                 <div className="poppins-medium text-3xl md:text-6xl text-black mt-[5px]">
