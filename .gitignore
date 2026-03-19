@@ -43,6 +43,12 @@ next-env.d.ts
 # osrm
 osrm-ny/
 
+#ml work
+ml/Archive/
+ml/Data/
+ml/eved-dataset/
+ml/Final_Outputs/final_ice_trips_master.csv
+
 .env
 
 */venv
