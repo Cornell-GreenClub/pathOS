@@ -474,6 +474,12 @@ if __name__ == "__main__":
     )
     
     fuel_matrix = builder.build_matrix(locations)
+
+    print(f"\n--- 2D List Format ---")
+    print("fuel_matrix = [")
+    for row in fuel_matrix:
+        print(f"    {row},")
+    print("]")
     
     # Save to CSV
     df = pd.DataFrame(fuel_matrix, index=builder.labels, columns=builder.labels)
