@@ -3,13 +3,13 @@ import os
 import glob
 
 # Load reference data
-df_vehicles = pd.read_excel('eved-dataset/class_data/VED_Static_Data_ICE&HEV.xlsx')
+df_vehicles = pd.read_excel('/Users/fli6/Desktop/pathOS/pathOS/ml/eved-dataset/class_data/VED_Static_Data_ICE&HEV.xlsx')
 
 #We only want to keep the ICE vehicles, so we create a set of their IDs for quick lookup
 ice_ids = set(df_vehicles[df_vehicles['Vehicle Type'] == 'ICE']['VehId'].dropna().astype(int))
 
 # Setup file paths
-folder_path = 'eved-dataset/data/eVED/'
+folder_path = '/Users/fli6/Desktop/pathOS/pathOS/ml/eved-dataset/data/eVED/'
 file_pattern = os.path.join(folder_path, 'eVED_*_week.csv')
 all_files = glob.glob(file_pattern)
 
@@ -42,5 +42,5 @@ print(f"Total ICE trip records: {len(final_ice_eved_df):,}")
 
 print(final_ice_eved_df['VehId'])
 # Recommended: Export to a format better suited for 13M rows than CSV
-final_ice_eved_df.to_csv('/Users/fli6/Desktop/Projects/pathos_model_updated/Final_Outputs/final_ice_trips_master.csv')
+final_ice_eved_df.to_csv('/Users/fli6/Desktop/pathOS/pathOS/ml/Final_Outputs/final_ice_trips_master.csv')
 print('Done')

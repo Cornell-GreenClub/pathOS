@@ -27,7 +27,7 @@ print("="*60)
 print("FUEL CONSUMPTION MODEL TRAINING")
 print("="*60)
 
-df = pd.read_csv('/Users/fli6/Desktop/Projects/pathos_model_updated/Final_Outputs/trip_summaries_clean.csv')
+df = pd.read_csv('/Users/fli6/Desktop/pathOS/pathOS/ml/Final_Outputs/trip_summaries_clean.csv')
 print(f"\nLoaded {len(df):,} trips")
 
 # ============================================================
@@ -273,7 +273,7 @@ print(f"\n{'='*60}")
 print("SAVING MODELS")
 print(f"{'='*60}")
 
-output_dir = '/Users/fli6/Desktop/Projects/pathos_model_updated/Final_Outputs/'
+output_dir = '/Users/fli6/Desktop/pathOS/pathOS/ml/Final_Outputs'
 
 joblib.dump({
     'model': model_physics,

@@ -23,7 +23,7 @@ cols_to_use = [
     'Elevation Smoothed[m]'
 ]
 
-df = pd.read_csv('/Users/fli6/Desktop/Projects/pathos_model_updated/Final_Outputs/final_ice_trips_master.csv', usecols=cols_to_use, low_memory=False)
+df = pd.read_csv('/Users/fli6/Desktop/pathOS/pathOS/ml/Final_Outputs/final_ice_trips_master.csv', usecols=cols_to_use, low_memory=False)
 print(f"Loaded {len(df):,} rows")
 
 # Add weights
@@ -250,8 +250,8 @@ print(high_fuel_only[['Total_Distance_km', 'Total_Fuel_Liters', 'Fuel_L_per_100k
 # ============================================================
 
 # Save both versions
-df_trips.to_csv('/Users/fli6/Desktop/Projects/pathos_model_updated/Final_Outputs/trip_summaries_all.csv', index=False)
-df_clean.to_csv('/Users/fli6/Desktop/Projects/pathos_model_updated/Final_Outputs/trip_summaries_clean.csv', index=False)
+df_trips.to_csv('/Users/fli6/Desktop/pathOS/pathOS/ml/Final_Outputs/trip_summaries_all.csv', index=False)
+df_clean.to_csv('/Users/fli6/Desktop/pathOS/pathOS/ml/Final_Outputs/trip_summaries_clean.csv', index=False)
 
 print(f"\n✓ Saved 'trip_summaries_all.csv' ({len(df_trips):,} trips)")
 print(f"✓ Saved 'trip_summaries_clean.csv' ({len(df_clean):,} trips)")
