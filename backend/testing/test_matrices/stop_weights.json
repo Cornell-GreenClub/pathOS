@@ -1,0 +1,38 @@
+{
+  "by_index": {
+    "0": 0,
+    "1": 2500,
+    "2": 40,
+    "3": 35,
+    "4": 30,
+    "5": 60,
+    "6": 45,
+    "7": 50,
+    "8": 35,
+    "9": 55,
+    "10": 20,
+    "11": 15,
+    "12": 30,
+    "13": 40,
+    "14": 100
+  },
+  "by_name": {
+    "TST BOCES Tompkins": 0,
+    "DeWitt Middle School": 2500,
+    "Northeast Elementary School": 40,
+    "Cayuga Heights Elementary School": 35,
+    "Belle Sherman Elementary School": 30,
+    "Caroline After School Program": 60,
+    "South Hill Elementary School": 45,
+    "Beverly J. Martin Elementary School": 50,
+    "Fall Creek Elementary School": 35,
+    "Boynton Middle School": 55,
+    "ICSD Technology": 20,
+    "737 Willow Ave": 15,
+    "Enfield Elementary School": 30,
+    "Lehman Alternative Community School": 40,
+    "Tompkins County Recycling": 100
+  },
+  "total_pickup_kg": 580,
+  "base_vehicle_kg": 9000
+}
