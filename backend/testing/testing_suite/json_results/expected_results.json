@@ -1,0 +1,71 @@
+{
+  "tsp_optimal": {
+    "route_indices": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      0
+    ],
+    "route_names": [
+      "Depot",
+      "Stop A",
+      "Stop B",
+      "Stop C",
+      "Stop D",
+      "Stop E",
+      "Stop F",
+      "Stop G",
+      "Stop H",
+      "Stop I",
+      "Stop J",
+      "Depot"
+    ],
+    "total_distance_km": 26.707675729659076,
+    "fuel_liters": 12.222233724397329
+  },
+  "weight_aware_optimal": {
+    "route_indices": [
+      0,
+      10,
+      9,
+      8,
+      7,
+      6,
+      5,
+      4,
+      3,
+      2,
+      1,
+      0
+    ],
+    "route_names": [
+      "Depot",
+      "Stop J",
+      "Stop I",
+      "Stop H",
+      "Stop G",
+      "Stop F",
+      "Stop E",
+      "Stop D",
+      "Stop C",
+      "Stop B",
+      "Stop A",
+      "Depot"
+    ],
+    "total_distance_km": 26.70767572965908,
+    "fuel_liters": 11.496982446712984
+  },
+  "comparison": {
+    "routes_differ": true,
+    "fuel_savings_liters": 0.7252512776843449,
+    "fuel_savings_percent": 5.9338685058578085
+  }
+}
