@@ -1,0 +1,60 @@
+{
+  "by_index": {
+    "0": 0,
+    "1": 514.31,
+    "2": 326.53,
+    "3": 251.81,
+    "4": 240.97,
+    "5": 251.11,
+    "6": 357.22,
+    "7": 242.5,
+    "8": 273.33,
+    "9": 484.31,
+    "10": 0,
+    "11": 0,
+    "12": 271.11,
+    "13": 81.11,
+    "14": 0
+  },
+  "by_name": {
+    "TST BOCES Tompkins": 0,
+    "DeWitt Middle School": 514.31,
+    "Northeast Elementary School": 326.53,
+    "Cayuga Heights Elementary School": 251.81,
+    "Belle Sherman Elementary School": 240.97,
+    "Caroline After School Program": 251.11,
+    "South Hill Elementary School": 357.22,
+    "Beverly J. Martin Elementary School": 242.5,
+    "Fall Creek Elementary School": 273.33,
+    "Boynton Middle School": 484.31,
+    "ICSD Technology": 0,
+    "737 Willow Ave": 0,
+    "Enfield Elementary School": 271.11,
+    "Lehman Alternative Community School": 81.11,
+    "Tompkins County Recycling": 0
+  },
+  "total_pickup_kg": 3294.31,
+  "base_vehicle_kg": 15000,
+  "max_loaded_kg": 18294.31,
+  "pickup_stop_indices": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    12,
+    13
+  ],
+  "non_pickup_stop_indices": [
+    0,
+    10,
+    11,
+    14
+  ],
+  "num_pickup_stops": 11,
+  "heaviest_stop_index": 1
+}
