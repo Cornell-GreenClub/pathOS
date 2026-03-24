@@ -55,7 +55,7 @@ def main():
     _,          fuel_matrix       = load_csv_matrix(os.path.join(data_dir, 'fuel_matrix.csv'))
 
     # Load JSON configs
-    weights_data = load_json(os.path.join(data_dir, 'stop_weights.json'))
+    weights_data = load_json(os.path.join(data_dir, 'stop_weights_real_kg.json'))
     betas        = load_json(os.path.join(data_dir, 'beta_coefficients.json'))
 
     # Build weights dict: {int_index: pickup_kg}
@@ -90,6 +90,34 @@ def main():
 
     print(f"\nFinal route indices: {result}")
     print(f"Final route: {[location_names[i] for i in result]}")
+
+    # Compare to original sequential route (the order from stop_weights)
+    original_route = list(range(n))
+    original_cost = optimizer._route_cost(original_route, distance_matrix, elevation_matrix,
+                                           speed_matrix, weights, betas, base_vehicle_kg)
+    original_dist = optimizer._route_distance(original_route, distance_matrix)
+
+    final_cost = optimizer._route_cost(result, distance_matrix, elevation_matrix,
+                                        speed_matrix, weights, betas, base_vehicle_kg)
+    final_dist = optimizer._route_distance(result, distance_matrix)
+
+    print("\n" + "=" * 80)
+    print("COMPARISON: Original Route vs Optimized Route")
+    print("=" * 80)
+    print(f"  Original: {' -> '.join(location_names[i] for i in original_route)}")
+    print(f"  Cost:     {original_cost:.6f}")
+    print(f"  Distance: {original_dist:.4f} km")
+    print()
+    print(f"  Optimized: {' -> '.join(location_names[i] for i in result)}")
+    print(f"  Cost:      {final_cost:.6f}")
+    print(f"  Distance:  {final_dist:.4f} km")
+    print()
+    savings = original_cost - final_cost
+    if savings > 0:
+        print(f"  SAVINGS:   {savings:.6f} ({(savings / original_cost) * 100:.2f}%)")
+    else:
+        print(f"  No improvement over original route.")
+    print("=" * 80)
 
 
 if __name__ == "__main__":
