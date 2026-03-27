@@ -86,7 +86,6 @@ def main():
     best_vs_tsp = max(sa_vs_tsp_pcts)
     worst_vs_tsp = min(sa_vs_tsp_pcts)
 
-    # Load expected results
     expected = load_json(os.path.join(data_dir, 'expected_results.json'))
     exp_init_cost = expected["initial_route"]["cost"]
     exp_tsp_cost = expected["tsp_route"]["cost"]
