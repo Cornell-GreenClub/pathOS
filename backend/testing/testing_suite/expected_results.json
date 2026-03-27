@@ -1,0 +1,62 @@
+{
+  "initial_route": {
+    "route": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0],
+    "route_names": [
+      "Stop A",
+      "Stop B",
+      "Stop C",
+      "Stop D",
+      "Stop E",
+      "Stop F",
+      "Stop G",
+      "Stop H",
+      "Stop I",
+      "Stop J",
+      "Stop A"
+    ],
+    "distance_km": 52.53,
+    "cost": 53.330342
+  },
+  "tsp_route": {
+    "route": [0, 1, 3, 5, 8, 7, 9, 6, 2, 4, 0],
+    "route_names": [
+      "Stop A",
+      "Stop B",
+      "Stop D",
+      "Stop F",
+      "Stop I",
+      "Stop H",
+      "Stop J",
+      "Stop G",
+      "Stop C",
+      "Stop E",
+      "Stop A"
+    ],
+    "distance_km": 26.86,
+    "cost": 25.909146
+  },
+  "weight_aware_route": {
+    "route": [0, 4, 2, 6, 9, 7, 8, 5, 3, 1, 0],
+    "route_names": [
+      "Stop A",
+      "Stop E",
+      "Stop C",
+      "Stop G",
+      "Stop J",
+      "Stop H",
+      "Stop I",
+      "Stop F",
+      "Stop D",
+      "Stop B",
+      "Stop A"
+    ],
+    "distance_km": 26.86,
+    "cost": 22.539261
+  },
+  "notes": {
+    "positions_different": "8/9 middle positions differ",
+    "tsp_visits_heavy_first": "B(2500kg), D(2000kg), F(1500kg) in positions 1-3",
+    "weight_visits_heavy_last": "F(1500kg), D(2000kg), B(2500kg) in positions 7-9",
+    "weight_savings_pct": "13.0%"
+  }
+}
