@@ -119,7 +119,8 @@ def main():
     stops = get_sample_stops()
     
     # 1. Get Distance Matrix
-    osrm_host = config.OSRM_HOST
+    from app import get_osrm_host
+    osrm_host = get_osrm_host()
     table_data = get_osrm_matrix(stops, osrm_host)
     
     if not table_data:

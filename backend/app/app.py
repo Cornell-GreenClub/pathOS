@@ -17,6 +17,7 @@ from flask_cors import CORS
 import logging
 import requests
 import config
+import time
 from route_optimizer import RouteOptimizer
 
 # Configure logging
@@ -65,27 +66,60 @@ def normalize_stops_for_printing(stops):
     return normalized
 
 
-def format_table_url(stops):
+def get_osrm_host():
+    """
+    Wake up the OSRM server if a wake URL is provided.
+    Returns the OSRM host IP.
+    """
+    if not config.OSRM_WAKE_URL:
+        return config.OSRM_HOST
+
+    headers = {"x-osrm-secret": config.OSRM_WAKE_SECRET}
+    max_retries = 15  # Up to 75 seconds
+    
+    for i in range(max_retries):
+        try:
+            resp = requests.get(config.OSRM_WAKE_URL, headers=headers, timeout=10)
+            if resp.status_code == 200:
+                data = resp.json()
+                if data.get("status") == "running" and data.get("ip"):
+                    return f"http://{data['ip']}:5000"
+            elif resp.status_code == 202:
+                logging.info(f"OSRM server is waking up... (attempt {i+1}/{max_retries})")
+            else:
+                logging.warning(f"Unexpected wake response: {resp.status_code} {resp.text}")
+        except Exception as e:
+            logging.error(f"Error waking OSRM server: {e}")
+            
+        time.sleep(5)
+        
+    logging.error("Failed to wake OSRM server within the timeout.")
+    return config.OSRM_HOST
+
+
+def format_table_url(stops, osrm_host=None):
     """
     Build OSRM table API URL for a list of stops.
     The Table API returns a square matrix of travel times/distances between all pairs of coordinates.
     """
+    host = osrm_host or config.OSRM_HOST
     coords_list = []
     for s in stops:
         c = s.get("coords")
         if c is None or "lat" not in c or "lng" not in c:
             raise ValueError("All stops must include coords with lat and lng.")
         coords_list.append(f"{c['lng']},{c['lat']}")
-    return f"{config.OSRM_HOST}/table/v1/driving/{';'.join(coords_list)}?annotations=distance,duration"
+    return f"{host}/table/v1/driving/{';'.join(coords_list)}?annotations=distance,duration"
 
 
-def format_route_url(stops):
+def format_route_url(stops, osrm_host=None):
     """
     Build OSRM route API URL for ordered stops with GeoJSON overview.
     The Route API returns the actual path geometry (waypoints) to draw on the map.
     """
+    host = osrm_host or config.OSRM_HOST
     coords_list = [f"{s['coords']['lng']},{s['coords']['lat']}" for s in stops]
-    return f"{config.OSRM_HOST}/route/v1/driving/{';'.join(coords_list)}?overview=full&geometries=geojson&steps=false"
+    return f"{host}/route/v1/driving/{';'.join(coords_list)}?overview=full&geometries=geojson&steps=false"
 
 
 
@@ -138,6 +172,9 @@ def optimize_route():
             return jsonify({"error": f"Stop at index {i} is missing coords.lat/coords.lng."}), 400
 
     try:
+        # --- Wake up OSRM server ---
+        osrm_host = get_osrm_host()
+
         # --- PRINT ORIGINAL STOPS ---
         print_stops("ORIGINAL STOP ORDER", normalize_stops_for_printing(stops))
 
@@ -145,7 +182,7 @@ def optimize_route():
             ordered_stops = stops
         else:
             # --- Call OSRM Table API ---
-            table_url = format_table_url(stops)
+            table_url = format_table_url(stops, osrm_host)
             table_resp = requests.get(table_url, timeout=10)
             table_data = table_resp.json()
 
@@ -193,7 +230,7 @@ def optimize_route():
         print_stops("OPTIMIZED STOP ORDER", normalize_stops_for_printing(ordered_stops))
 
         # --- Call OSRM Route API ---
-        route_url = format_route_url(ordered_stops)
+        route_url = format_route_url(ordered_stops, osrm_host)
         route_resp = requests.get(route_url, timeout=10)
         route_data = route_resp.json()
 

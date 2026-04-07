@@ -5,3 +5,4 @@ ortools
 gunicorn
 requests
 locust
+python-dotenv
