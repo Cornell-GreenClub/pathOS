@@ -28,7 +28,7 @@ logging.basicConfig(
 )
 
 app = Flask(__name__)
-CORS(app)
+CORS(app, resources={r"/*": {"origins": ["https://www.pathos.earth", "http://localhost:3000"]}})
 
 try:
     optimizer = RouteOptimizer(app.config)
