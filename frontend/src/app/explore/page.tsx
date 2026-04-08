@@ -292,7 +292,7 @@ const ExplorePage = () => {
       }
       
       let response;
-      let maxRetries = 2; // Try up to 3 times to bypass 100s Render timeout
+      const maxRetries = 2; // Try up to 3 times to bypass 100s Render timeout
 
       for (let attempt = 0; attempt <= maxRetries; attempt++) {
         try {
