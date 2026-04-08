@@ -269,7 +269,7 @@ const ExplorePage = () => {
     }, 15000); // 15 seconds
 
     try {
-      let backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000';
+      let backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://127.0.0.1:8000';
       if (!backendUrl.startsWith('http')) {
         backendUrl = `https://${backendUrl}`;
       }
@@ -416,7 +416,7 @@ const ExplorePage = () => {
               </h1>
               <p className="text-gray-600 text-sm italic -mt-6 mb-8 poppins-regular">
                 {/* *We currently only support routes within the state of New York */}
-                *Backend is currently deactivated to reduce costs
+                {/* *Backend is currently deactivated to reduce costs */}
               </p>
               <form
                 onSubmit={handleSubmit}
