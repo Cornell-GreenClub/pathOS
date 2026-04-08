@@ -145,6 +145,14 @@ def lambda_handler(event, context):
    - **Datapoints:** 6 out of 6 (30-minute sustained inactivity).
    - **Condition:** `< 3000` Bytes.
 3. **Action:** Set the "In Alarm" state to trigger the `osrm-hibernate` Lambda.
+4. **Grant CloudWatch Permissions:**
+   - By default, CloudWatch cannot invoke your Lambda. You must add a Resource-Based Policy.
+   - Go to the `osrm-hibernate` Lambda in the AWS Console > **Configuration** tab > **Permissions**.
+   - Under **Resource-based policy statements**, click **Add permissions**.
+   - Select **AWS Service** and select **Other**.
+   - **Principal:** `lambda.amazonaws.com`
+   - **Source ARN:** Paste your CloudWatch Alarm ARN (e.g., `arn:aws:cloudwatch:us-east-1:...`).
+   - **Action:** `lambda:InvokeFunction`.
 
 ---
 

@@ -154,6 +154,23 @@ const ExplorePage = () => {
     console.log('Updated stops:', formData.stops);
   }, [formData.stops]); // Runs whenever `stops` changes
 
+  // Pre-fire to wake up the Render backend (but not OSRM)
+  useEffect(() => {
+    const wakeBackendOnly = async () => {
+      try {
+        let backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://127.0.0.1:8000';
+        if (!backendUrl.startsWith('http')) {
+          backendUrl = `https://${backendUrl}`;
+        }
+        // Fire and forget
+        fetch(`${backendUrl}/health`).catch(err => console.log('Backend prefire ping failed', err));
+      } catch (err) {
+        console.error('Failed to initiate backend prefire:', err);
+      }
+    };
+    wakeBackendOnly();
+  }, []);
+
 
 
 
@@ -274,11 +291,36 @@ const ExplorePage = () => {
         backendUrl = `https://${backendUrl}`;
       }
       
-      const response = await fetch(`${backendUrl}/optimize_route`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
-      });
+      let response;
+      let maxRetries = 2; // Try up to 3 times to bypass 100s Render timeout
+
+      for (let attempt = 0; attempt <= maxRetries; attempt++) {
+        try {
+          response = await fetch(`${backendUrl}/optimize_route`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(formData),
+          });
+
+          // Break loop on explicit returns (success or deliberate error)
+          if (response.ok || response.status === 400 || response.status === 500) {
+            break;
+          }
+        } catch (fetchErr) {
+          if (attempt === maxRetries) throw fetchErr;
+          console.warn(`Fetch timed out or dropped, retrying in background... (${attempt + 1}/${maxRetries})`);
+        }
+
+        if (attempt < maxRetries) {
+          setLoadingMessage('Server was cold, retrying... ❄️');
+          // Wait 6 seconds before trying again
+          await new Promise((resume) => setTimeout(resume, 6000));
+        }
+      }
+
+      if (!response) {
+        throw new Error('All fetch attempts failed.');
+      }
 
       const data = await response.json();
 
@@ -299,6 +341,7 @@ const ExplorePage = () => {
       setIsMapView(true);
     } catch (err) {
       console.error('Error calling backend:', err);
+      alert('The server failed to answer or wake up in time. Please click Optimize Route again.');
     } finally {
       clearTimeout(timeoutId);
       setIsLoading(false);
