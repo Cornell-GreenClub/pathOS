@@ -141,8 +141,8 @@ def lambda_handler(event, context):
 
 1. **Create a CloudWatch Alarm** for the instance metric `NetworkIn`.
 2. **Threshold:** 
-   - **Period:** 5 Minutes.
-   - **Condition:** `< 3000` Bytes.
+   - **Period:** 30 Minutes.
+   - **Condition:** `< 10000` Bytes.
 3. **Action:** Set the "In Alarm" state to trigger the `osrm-hibernate` Lambda.
 
 ---
