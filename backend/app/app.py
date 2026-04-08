@@ -83,7 +83,12 @@ def get_osrm_host():
             if resp.status_code == 200:
                 data = resp.json()
                 if data.get("status") == "running" and data.get("ip"):
-                    return f"http://{data['ip']}:5000"
+                    osrm_url = f"http://{data['ip']}:5000"
+                    try:
+                        requests.get(osrm_url, timeout=3)
+                        return osrm_url
+                    except requests.exceptions.RequestException:
+                        logging.info("EC2 running, waiting for OSRM Engine to load into memory...")
             elif resp.status_code == 202:
                 logging.info(f"OSRM server is waking up... (attempt {i+1}/{max_retries})")
             else:
