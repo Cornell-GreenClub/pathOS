@@ -200,8 +200,28 @@ def optimize_route():
                         source['name'] = stops[i].get('location', 'Unknown')
 
             # --- Call RouteOptimizer ---
-            mpg_val = float(payload.get("currentFuel", 20.0))
-            reordered = optimizer.optimize_route(table_data, mpg_val)
+            distances = table_data.get("distances", [])
+            n = len(distances)
+            
+            # Bridge the new complex ML optimizer by passing distances as the primary cost function
+            # and zeroing out the advanced machine-learning metrics until they are fully integrated.
+            elev_matrix = [[0.0] * n for _ in range(n)]
+            speed_matrix = [[1.0] * n for _ in range(n)]
+            weights = {i: 0.0 for i in range(n)}
+            betas = {"Intercept": 0.0, "Total_Distance_km": 1.0, "Dist_x_Weight": 0.0, "Elev_x_Weight": 0.0, "Dist_x_Speed2": 0.0}
+            base_veh = 1000.0
+            names = [str(i) for i in range(n)]
+
+            reordered = optimizer.optimize_route(
+                fuel_matrix=distances,
+                distance_matrix=distances,
+                elevation_matrix=elev_matrix,
+                speed_matrix=speed_matrix,
+                weights=weights,
+                betas=betas,
+                base_vehicle_kg=base_veh,
+                location_names=names
+            )
 
             # --- PRINT RAW OPTIMIZER OUTPUT ---
             logging.info("=== OPTIMIZER RAW OUTPUT ===")
