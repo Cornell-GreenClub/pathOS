@@ -141,8 +141,8 @@ def lambda_handler(event, context):
 
 1. **Create a CloudWatch Alarm** for the instance metric `NetworkIn`.
 2. **Threshold:** 
-   - **Period:** 30 Minutes.
-   - **Condition:** `< 10000` Bytes.
+   - **Period:** 10 Minutes.
+   - **Condition:** `< 50000` Bytes.
 3. **Action:** Set the "In Alarm" state to trigger the `osrm-hibernate` Lambda.
 4. **Grant CloudWatch Permissions:**
    - By default, CloudWatch cannot invoke your Lambda. You must add a Resource-Based Policy.
