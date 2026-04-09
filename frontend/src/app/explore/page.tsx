@@ -312,7 +312,9 @@ const ExplorePage = () => {
         }
 
         if (attempt < maxRetries) {
-          setLoadingMessage('Server was cold, retrying... ❄️');
+          // Prevent the 15-second 'Waking up server...' timer from incorrectly overwriting this message
+          clearTimeout(timeoutId);
+          setLoadingMessage('Server was cold, retrying...');
           // Wait 6 seconds before trying again
           await new Promise((resume) => setTimeout(resume, 6000));
         }
