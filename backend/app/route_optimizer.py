@@ -28,14 +28,15 @@ class RouteOptimizer:
                        speed_matrix, weights, betas, base_vehicle_kg,
                        location_names):
         """
-        Main entry point. Returns optimized round-trip route [0, ..., 0].
+        Main entry point. Returns open-path route [0, ..., n-1].
+        Start (index 0) and end (index n-1) are fixed; middle stops are optimized.
         """
         n = len(location_names)
         if n <= 2:
             logging.info("2 or fewer stops - no optimization needed.")
-            return list(range(n)) + [0]
+            return list(range(n))
 
-        # Step 1: TSP on fuel matrix (round trip from depot)
+        # Step 1: TSP on fuel matrix (open path: fixed start 0, fixed end n-1)
         tsp_route = self._solve_tsp(fuel_matrix, location_names)
         if not tsp_route:
             logging.warning("TSP solver failed.")
@@ -47,7 +48,7 @@ class RouteOptimizer:
                                      speed_matrix, weights, betas, base_vehicle_kg)
 
         logging.info("=" * 80)
-        logging.info("TSP RESULT (fuel-matrix based, round trip)")
+        logging.info("TSP RESULT (fuel-matrix based, open path)")
         logging.info(f"  Route:    {' -> '.join(location_names[i] for i in tsp_route)}")
         logging.info(f"  Distance: {tsp_dist:.4f} km")
         logging.info(f"  Cost:     {tsp_cost:.6f}")
@@ -213,10 +214,26 @@ class RouteOptimizer:
     # ==================== TSP SOLVER ====================
 
     def _solve_tsp(self, fuel_matrix, location_names):
-        """Solves TSP as round trip from depot (index 0)."""
+        """
+        Solves open-path TSP: fixed start at index 0, fixed end at index n-1.
+
+        Technique: use OR-Tools round-trip formulation but block middle stops
+        from returning to the depot (cost = INF) and make the end stop's return
+        to the depot free (cost = 0). This forces the route:
+            0 -> [middle stops] -> n-1 -> depot (free)
+        The trailing depot is stripped before returning.
+        """
         n = len(fuel_matrix)
+        INF = 10 ** 9
+
         int_matrix = [[int(round(fuel_matrix[i][j] * FUEL_SCALE))
                         for j in range(n)] for i in range(n)]
+
+        # Block middle stops (1..n-2) from returning to depot
+        for i in range(1, n - 1):
+            int_matrix[i][0] = INF
+        # End stop (n-1) returns to depot for free — not a real leg
+        int_matrix[n - 1][0] = 0
 
         manager = pywrapcp.RoutingIndexManager(n, 1, 0)
         routing = pywrapcp.RoutingModel(manager)
@@ -230,7 +247,7 @@ class RouteOptimizer:
         params = pywrapcp.DefaultRoutingSearchParameters()
         params.first_solution_strategy = routing_enums_pb2.FirstSolutionStrategy.PATH_CHEAPEST_ARC
 
-        logging.info(f"\nSolving TSP on fuel matrix ({n} stops, round trip from depot)...")
+        logging.info(f"\nSolving TSP on fuel matrix ({n} stops, open path 0 -> {n-1})...")
         solution = routing.SolveWithParameters(params)
 
         if not solution:
@@ -242,7 +259,7 @@ class RouteOptimizer:
         while not routing.IsEnd(idx):
             route.append(manager.IndexToNode(idx))
             idx = solution.Value(routing.NextVar(idx))
-        route.append(manager.IndexToNode(idx))
+        # Do not append the end depot node — the route already ends at n-1
 
         logging.info(f"TSP route: {' -> '.join(location_names[i] for i in route)}")
         return route

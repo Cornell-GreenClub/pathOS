@@ -16,3 +16,6 @@ FLASK_PORT = int(os.environ.get('PORT', 8000))
 OSRM_HOST = os.environ.get('OSRM_HOST', "http://127.0.0.1:5000")
 OSRM_WAKE_URL = os.environ.get('OSRM_WAKE_URL', None)
 OSRM_WAKE_SECRET = os.environ.get('OSRM_WAKE_SECRET', None)
+
+# ORS API key for elevation queries (optional — falls back to 0 m if unset)
+ORS_API_KEY = os.environ.get('ORS_API_KEY', None)

@@ -8,15 +8,7 @@ import {
   useMap,
 } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
-import L, { LatLng } from 'leaflet';
-import {
-  AreaChart,
-  Area,
-  XAxis,
-  YAxis,
-  Tooltip,
-  CartesianGrid,
-} from 'recharts';
+import L from 'leaflet';
 
 // Fix for default marker icons
 L.Icon.Default.mergeOptions({
@@ -25,38 +17,6 @@ L.Icon.Default.mergeOptions({
   iconUrl:
     'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.3.1/images/marker-shadow.png',
 });
-
-// define unit conversions
-const convertUnits = {
-  distance: {
-    kmToMiles: (km: number) => (km * 0.621371).toFixed(1),
-    milesToKm: (miles: number) => (miles / 0.621371).toFixed(1),
-  },
-  emissions: {
-    kgToLbs: (kg: number) => (kg * 2.20462).toFixed(1),
-    kgToTrees: (kg: number) => (kg * 0.0834).toFixed(1),
-    treesToKg: (trees: number) => (trees / 0.0834).toFixed(1),
-  },
-  cost: {
-    // Only use per km cost, removing perMile
-    perKm: 0.15, // $0.15 per km
-  },
-};
-
-/**
- *
- * @param route route to calculate distance of, 2d array of latitude longitude
- * @returns distance to nearest integer in kilometers
- */
-const calculateRouteDistance = (route: number[][]) => {
-  let totalDistance = 0;
-  for (let i = 0; i < route.length - 1; i++) {
-    const point1 = L.latLng(route[i][0], route[i][1]);
-    const point2 = L.latLng(route[i + 1][0], route[i + 1][1]);
-    totalDistance += point1.distanceTo(point2) / 1000; // Convert meters to kilometers
-  }
-  return Math.round(totalDistance);
-};
 
 /**
  * MapController adjusts the map view to fit the provided route or coordinates.
@@ -106,10 +66,14 @@ const Legend = () => {
       <div className="space-y-2">
         <div className="flex items-center gap-2">
           <div className="w-4 h-4 bg-blue-500 rounded-full"></div>
-          <span>Start/End Stop</span>
+          <span>Start</span>
         </div>
         <div className="flex items-center gap-2">
-          <div className="w-4 h-4 bg-yellow-500 rounded-full"></div>
+          <div className="w-4 h-4 bg-red-500 rounded-full"></div>
+          <span>End</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="w-4 h-4 bg-orange-400 rounded-full"></div>
           <span>Intermediate Stop</span>
         </div>
         <div className="flex items-center gap-2">
@@ -180,139 +144,76 @@ const ZoomControls = () => {
 };
 
 /**
- * AnalyticsPanel displays route analytics, including distance, emissions, cost savings,
- * and a chart of emissions over time. It allows users to toggle units and export a report.
+ * AnalyticsPanel displays real route analytics from the backend physics model,
+ * showing before/after comparison of distance, duration, fuel, and CO2.
  *
  * Props:
  * - isOpen: Boolean indicating whether the panel is visible
  * - onClose: Function to close the panel
- * - route: Array of route coordinates
- * - formData: Object containing form submission data, such as stops and time
+ * - metrics: RouteMetrics object with optimized and original values from backend
+ * - formData: Object containing form submission data, such as stops
  */
-const AnalyticsPanel = ({ isOpen, onClose, route, formData }: any) => {
-  const [distanceUnit, setDistanceUnit] = useState<'km' | 'mi'>('km');
-  const [emissionsUnit, setEmissionsUnit] = useState<'co2' | 'trees'>('co2');
+const AnalyticsPanel = ({ isOpen, onClose, metrics, formData }: any) => {
+  const hasData =
+    metrics && (metrics.distanceKm != null || metrics.fuelLiters != null);
+  const hasOriginal = metrics && metrics.originalDistanceKm != null;
 
-  // Compute original route distance and assume a 15% optimization
-  const originalDistance = route ? calculateRouteDistance(route) : 0;
-  const optimizedDistance = Math.round(originalDistance * 0.85); // Assuming 15% optimization
-  const distanceSaved = originalDistance - optimizedDistance;
-  const distanceSavedPercent = originalDistance
-    ? ((distanceSaved / originalDistance) * 100).toFixed(1)
-    : '0';
+  const fuelSaved =
+    hasOriginal && metrics.fuelLiters != null
+      ? Math.round((metrics.originalFuelLiters - metrics.fuelLiters) * 100) /
+        100
+      : null;
+  const co2Saved =
+    hasOriginal && metrics.co2Kg != null
+      ? Math.round((metrics.originalCo2Kg - metrics.co2Kg) * 100) / 100
+      : null;
+  const distanceSaved =
+    hasOriginal && metrics.distanceKm != null
+      ? Math.round((metrics.originalDistanceKm - metrics.distanceKm) * 100) /
+        100
+      : null;
+  const fuelSavedPct =
+    hasOriginal && metrics.originalFuelLiters > 0
+      ? (
+          ((metrics.originalFuelLiters - metrics.fuelLiters) /
+            metrics.originalFuelLiters) *
+          100
+        ).toFixed(1)
+      : null;
 
-  // Calculate emissions using a fixed emission rate
-  // Logic:
-  // 1. Estimate optimized distance (currently mocked as 85% of original).
-  // 2. Calculate emissions based on distance * factor (0.12 kg/km).
-  // 3. Calculate savings.
-  const emissionsPerKm = 0.12; // kg CO2 per km (example value)
-  const totalEmissions =
-    Math.round(optimizedDistance * emissionsPerKm * 10) / 10;
-  const emissionsSaved = Math.round(distanceSaved * emissionsPerKm * 10) / 10;
-  const savingsPercentage = distanceSavedPercent;
-
-  // const mockEmissionsData = [
-  //     { time: '0h', emissions: 2.1, distance: 50 },
-  //     { time: '1h', emissions: 3.4, distance: 120 },
-  //     { time: '2h', emissions: 2.8, distance: 180 },
-  //     { time: '3h', emissions: 4.2, distance: 270 },
-  //     { time: '4h', emissions: 3.1, distance: 350 },
-  //     { time: '5h', emissions: 2.9, distance: 437 }
-  // ];
-
-  // const totalEmissions = 13.1; // kg CO2
-  // const emissionsSaved = 2.4; // kg CO2
-  // const savingsPercentage = 15.5;
-
-  // Generate mock emissions data over time for chart display
-  const mockEmissionsData = Array.from({ length: 6 }, (_, i) => ({
-    time: `${i}h`,
-    emissions: ((totalEmissions / 6) * (1 + Math.sin(i / 2) * 0.3)).toFixed(1),
-    distance: Math.round((optimizedDistance / 6) * (i + 1)),
-  }));
-
-  // Extract time information
-  const originalTime = formData.time || '6h 30m';
-  const optimizedTime = '5h 23m'; //TODO: PLACEHOLDER
-
-  //format distance
-  const formatDistance = (km: number) => {
-    return distanceUnit === 'km'
-      ? `${km} km`
-      : `${convertUnits.distance.kmToMiles(km)} mi`;
+  const formatDuration = (min: number | null) => {
+    if (min == null) return '—';
+    if (min >= 60) return `${Math.floor(min / 60)}h ${Math.round(min % 60)}m`;
+    return `${Math.round(min)}m`;
   };
-
-  //format emissions
-  const formatEmissions = (kgCO2: number) => {
-    if (emissionsUnit === 'trees') {
-      return `${convertUnits.emissions.kgToTrees(kgCO2)} trees/year`;
-    }
-    // Convert to lbs if distance unit is miles
-    return distanceUnit === 'km'
-      ? `${kgCO2} kg CO₂`
-      : `${convertUnits.emissions.kgToLbs(kgCO2)} lbs CO₂`;
-  };
-
-  // Reusable toggle UI component for selecting units
-  const UnitToggle = ({
-    unit,
-    onChange,
-    options,
-  }: {
-    unit: string;
-    onChange: (value: any) => void;
-    options: { value: string; label: string }[];
-  }) => (
-    <div className="flex items-center space-x-2 bg-gray-100 rounded-lg p-1">
-      {options.map((option) => (
-        <button
-          key={option.value}
-          onClick={() => onChange(option.value)}
-          className={`px-3 py-1 rounded-md text-sm ${
-            unit === option.value
-              ? 'bg-white shadow text-blue-600'
-              : 'text-gray-600 hover:bg-gray-200'
-          }`}
-        >
-          {option.label}
-        </button>
-      ))}
-    </div>
-  );
 
   // Export route report as downloadable JSON
   const handleExport = () => {
     const reportData = {
       routeInfo: {
-        startLocation: formData.stops[0].location,
-        endLocation: formData.stops[formData.stops.length - 1].location,
-        vehicleNumber: formData.vehicleNumber,
+        startLocation: formData.stops[0]?.location,
+        endLocation: formData.stops[formData.stops.length - 1]?.location,
         date: new Date().toLocaleDateString(),
-        time: formData.time,
       },
-      metrics: {
-        originalDistance: formatDistance(originalDistance),
-        optimizedDistance: formatDistance(optimizedDistance),
-        distanceSaved: formatDistance(distanceSaved),
-        originalTime: originalTime,
-        optimizedTime: optimizedTime,
-        totalEmissions: formatEmissions(totalEmissions),
-        emissionsSaved: formatEmissions(emissionsSaved),
-        optimizationPercentage: `${savingsPercentage}%`,
+      original: {
+        distanceKm: metrics?.originalDistanceKm,
+        durationMin: metrics?.originalDurationMin,
+        fuelLiters: metrics?.originalFuelLiters,
+        co2Kg: metrics?.originalCo2Kg,
       },
-      stops: formData.stops.map((stop: any, index: number) => ({
-        number: index + 1,
-        location: stop.location,
-        type:
-          index === 0
-            ? 'Start'
-            : index === formData.stops.length - 1
-              ? 'End'
-              : 'Stop',
-      })),
+      optimized: {
+        distanceKm: metrics?.distanceKm,
+        durationMin: metrics?.durationMin,
+        fuelLiters: metrics?.fuelLiters,
+        co2Kg: metrics?.co2Kg,
+      },
+      savings: {
+        fuelLiters: fuelSaved,
+        co2Kg: co2Saved,
+        distanceKm: distanceSaved,
+        fuelPct: fuelSavedPct,
+      },
     };
-
     const blob = new Blob([JSON.stringify(reportData, null, 2)], {
       type: 'application/json',
     });
@@ -326,208 +227,192 @@ const AnalyticsPanel = ({ isOpen, onClose, route, formData }: any) => {
     URL.revokeObjectURL(url);
   };
 
-  // Calculate cost savings (always based on km)
-  const costPerKm = convertUnits.cost.perKm;
-  const originalCost = originalDistance * costPerKm;
-  const optimizedCost = optimizedDistance * costPerKm;
-  const costSaved = originalCost - optimizedCost;
-
-  // Format cost with currency
-  const formatCost = (amount: number) => {
-    return `$${amount.toFixed(2)}`;
-  };
-
-  // Update the emissions impact section to include cost savings
   return (
-    <></>
-    // <div
-    //   className={`fixed right-0 top-0 h-full w-96 bg-white shadow-lg transform transition-transform duration-300 ease-in-out z-[1001] flex flex-col ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}
-    // >
-    //   {/* Fixed Header */}
-    //   <div className="p-4 border-b border-gray-200">
-    //     <div className="flex justify-between items-center">
-    //       <h2 className="text-xl font-semibold text-black">Route Analytics</h2>
-    //       <button onClick={onClose} className="p-2">
-    //         <svg
-    //           xmlns="http://www.w3.org/2000/svg"
-    //           className="h-6 w-6 text-black"
-    //           fill="none"
-    //           viewBox="0 0 24 24"
-    //           stroke="currentColor"
-    //         >
-    //           <path
-    //             strokeLinecap="round"
-    //             strokeLinejoin="round"
-    //             strokeWidth={2}
-    //             d="M6 18L18 6M6 6l12 12"
-    //           />
-    //         </svg>
-    //       </button>
-    //     </div>
-    //   </div>
+    <div
+      className={`fixed right-0 top-0 h-full w-96 bg-white shadow-lg transform transition-transform duration-300 ease-in-out z-[1001] flex flex-col ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}
+    >
+      {/* Header */}
+      <div className="p-4 border-b border-gray-200">
+        <div className="flex justify-between items-center">
+          <h2 className="text-xl font-semibold text-black">Route Analytics</h2>
+          <button onClick={onClose} className="p-2">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-6 w-6 text-black"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M6 18L18 6M6 6l12 12"
+              />
+            </svg>
+          </button>
+        </div>
+      </div>
 
-    //   {/* Scrollable Content */}
-    //   <div className="flex-1 overflow-y-auto p-4">
-    //     <div className="space-y-6 text-black">
-    //       {/* Unit Controls */}
-    //       <div className="flex justify-between gap-4 pb-2 border-b border-gray-200">
-    //         <UnitToggle
-    //           unit={distanceUnit}
-    //           onChange={setDistanceUnit}
-    //           options={[
-    //             { value: 'km', label: 'KM' },
-    //             { value: 'mi', label: 'MI' },
-    //           ]}
-    //         />
-    //         <UnitToggle
-    //           unit={emissionsUnit}
-    //           onChange={setEmissionsUnit}
-    //           options={[
-    //             { value: 'co2', label: 'CO₂' },
-    //             { value: 'trees', label: 'Trees' },
-    //           ]}
-    //         />
-    //       </div>
+      {/* Scrollable Content */}
+      <div className="flex-1 overflow-y-auto p-4">
+        {!hasData ? (
+          <p className="text-gray-500 text-sm">No analytics data available.</p>
+        ) : (
+          <div className="space-y-5 text-black">
+            {/* Savings Summary */}
+            {hasOriginal && fuelSaved != null && (
+              <div className="bg-gradient-to-br from-green-50 to-emerald-50 p-5 rounded-xl border border-green-100">
+                <h3 className="text-lg font-semibold text-green-800 mb-3">
+                  Optimization Savings
+                </h3>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="bg-white bg-opacity-60 rounded-lg p-3">
+                    <p className="text-xs text-green-600 mb-0.5">Fuel saved</p>
+                    <p className="text-xl font-bold text-green-700">
+                      {fuelSaved} L
+                    </p>
+                    {fuelSavedPct && (
+                      <p className="text-xs text-green-500">
+                        {fuelSavedPct}% less
+                      </p>
+                    )}
+                  </div>
+                  <div className="bg-white bg-opacity-60 rounded-lg p-3">
+                    <p className="text-xs text-green-600 mb-0.5">CO₂ saved</p>
+                    <p className="text-xl font-bold text-green-700">
+                      {co2Saved} kg
+                    </p>
+                  </div>
+                </div>
+                {distanceSaved != null && (
+                  <div className="mt-3 bg-white bg-opacity-60 rounded-lg p-3">
+                    <p className="text-xs text-green-600 mb-0.5">
+                      Distance saved
+                    </p>
+                    <p className="text-xl font-bold text-green-700">
+                      {distanceSaved} km
+                    </p>
+                  </div>
+                )}
+                {fuelSavedPct && (
+                  <div className="mt-3">
+                    <div className="flex justify-between text-xs text-green-700 mb-1">
+                      <span>Fuel reduction</span>
+                      <span>{fuelSavedPct}%</span>
+                    </div>
+                    <div className="w-full bg-green-200 rounded-full h-2">
+                      <div
+                        className="bg-green-500 h-2 rounded-full transition-all duration-500"
+                        style={{
+                          width: `${Math.min(parseFloat(fuelSavedPct), 100)}%`,
+                        }}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
 
-    //       {/* Updated Emissions Summary */}
-    //       <div className="bg-gradient-to-br from-green-50 to-emerald-50 p-6 rounded-xl border border-green-100">
-    //         <div className="flex items-center justify-between mb-4">
-    //           <h3 className="text-xl font-semibold text-green-800">
-    //             Impact Summary
-    //           </h3>
-    //           <svg
-    //             className="h-8 w-8 text-green-600"
-    //             fill="none"
-    //             stroke="currentColor"
-    //             viewBox="0 0 24 24"
-    //           >
-    //             <path
-    //               strokeLinecap="round"
-    //               strokeLinejoin="round"
-    //               strokeWidth="2"
-    //               d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"
-    //             />
-    //           </svg>
-    //         </div>
-    //         <div className="grid grid-cols-2 gap-4 mb-4">
-    //           <div className="bg-white bg-opacity-50 rounded-lg p-3">
-    //             <p className="text-sm text-green-600 mb-1">Total Emissions</p>
-    //             <p className="text-2xl font-bold text-green-700">
-    //               {formatEmissions(totalEmissions)}
-    //             </p>
-    //           </div>
-    //           <div className="bg-white bg-opacity-50 rounded-lg p-3">
-    //             <p className="text-sm text-green-600 mb-1">Emissions Saved</p>
-    //             <p className="text-2xl font-bold text-green-700">
-    //               {formatEmissions(emissionsSaved)}
-    //             </p>
-    //           </div>
-    //         </div>
-    //         {/* Add Cost Savings */}
-    //         <div className="bg-white bg-opacity-50 rounded-lg p-3 mb-4">
-    //           <p className="text-sm text-green-600 mb-1">Cost Savings</p>
-    //           <div className="flex justify-between items-baseline">
-    //             <p className="text-2xl font-bold text-green-700">
-    //               {formatCost(costSaved)}
-    //             </p>
-    //             <p className="text-sm text-green-600">
-    //               from {formatCost(originalCost)} to {formatCost(optimizedCost)}
-    //             </p>
-    //           </div>
-    //         </div>
-    //         <div className="bg-green-100 rounded-lg p-3">
-    //           <div className="flex items-center justify-between">
-    //             <span className="text-green-700">
-    //               Reduction from optimal routing
-    //             </span>
-    //             <span className="font-bold text-green-800">
-    //               {savingsPercentage}%
-    //             </span>
-    //           </div>
-    //           <div className="w-full bg-green-200 rounded-full h-2 mt-2">
-    //             <div
-    //               className="bg-green-500 h-2 rounded-full transition-all duration-500"
-    //               style={{ width: `${savingsPercentage}%` }}
-    //             ></div>
-    //           </div>
-    //         </div>
-    //       </div>
+            {/* Distance */}
+            <div className="bg-gray-50 p-4 rounded-lg">
+              <h4 className="font-semibold mb-3">Distance</h4>
+              <div className="grid grid-cols-2 gap-4">
+                {hasOriginal && (
+                  <div>
+                    <p className="text-xs text-gray-500">Original</p>
+                    <p className="text-lg font-medium">
+                      {metrics.originalDistanceKm} km
+                    </p>
+                  </div>
+                )}
+                <div>
+                  <p className="text-xs text-[#034626]">Optimized</p>
+                  <p className="text-lg font-medium text-[#034626]">
+                    {metrics.distanceKm} km
+                  </p>
+                </div>
+              </div>
+            </div>
 
-    //       {/* Updated Route Metrics */}
-    //       <div className="space-y-4">
-    //         <div className="bg-gray-50 p-4 rounded-lg">
-    //           <h4 className="font-semibold mb-3">Distance</h4>
-    //           <div className="grid grid-cols-2 gap-4">
-    //             <div>
-    //               <p className="text-sm text-gray-600">Original</p>
-    //               <p className="text-xl">{formatDistance(originalDistance)}</p>
-    //             </div>
-    //             <div>
-    //               <p className="text-sm text-green-600">Optimized</p>
-    //               <p className="text-xl text-green-700">
-    //                 {formatDistance(optimizedDistance)}
-    //               </p>
-    //             </div>
-    //           </div>
-    //           <div className="mt-2 text-sm text-green-600">
-    //             Saved {formatDistance(distanceSaved)} ({distanceSavedPercent}%)
-    //           </div>
-    //         </div>
+            {/* Duration */}
+            <div className="bg-gray-50 p-4 rounded-lg">
+              <h4 className="font-semibold mb-3">Duration</h4>
+              <div className="grid grid-cols-2 gap-4">
+                {hasOriginal && (
+                  <div>
+                    <p className="text-xs text-gray-500">Original</p>
+                    <p className="text-lg font-medium">
+                      {formatDuration(metrics.originalDurationMin)}
+                    </p>
+                  </div>
+                )}
+                <div>
+                  <p className="text-xs text-[#034626]">Optimized</p>
+                  <p className="text-lg font-medium text-[#034626]">
+                    {formatDuration(metrics.durationMin)}
+                  </p>
+                </div>
+              </div>
+            </div>
 
-    //         <div className="bg-gray-50 p-4 rounded-lg">
-    //           <h4 className="font-semibold mb-3">Time</h4>
-    //           <div className="grid grid-cols-2 gap-4">
-    //             <div>
-    //               <p className="text-sm text-gray-600">Original</p>
-    //               <p className="text-xl">{originalTime}h</p>
-    //             </div>
-    //             <div>
-    //               <p className="text-sm text-green-600">Optimized</p>
-    //               <p className="text-xl text-green-700">{optimizedTime}</p>
-    //             </div>
-    //           </div>
-    //         </div>
-    //       </div>
+            {/* Fuel */}
+            {metrics.fuelLiters != null && (
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <h4 className="font-semibold mb-3">Fuel Consumption</h4>
+                <div className="grid grid-cols-2 gap-4">
+                  {hasOriginal && (
+                    <div>
+                      <p className="text-xs text-gray-500">Original</p>
+                      <p className="text-lg font-medium">
+                        {metrics.originalFuelLiters} L
+                      </p>
+                    </div>
+                  )}
+                  <div>
+                    <p className="text-xs text-[#034626]">Optimized</p>
+                    <p className="text-lg font-medium text-[#034626]">
+                      {metrics.fuelLiters} L
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
 
-    //       {/* Emissions Chart */}
-    //       <div className="bg-white p-4 rounded-lg border">
-    //         <h4 className="font-semibold mb-4">Emissions Over Journey</h4>
-    //         <AreaChart
-    //           width={300}
-    //           height={200}
-    //           data={mockEmissionsData}
-    //           margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
-    //         >
-    //           <defs>
-    //             <linearGradient id="colorEmissions" x1="0" y1="0" x2="0" y2="1">
-    //               <stop offset="5%" stopColor="#8884d8" stopOpacity={0.8} />
-    //               <stop offset="95%" stopColor="#8884d8" stopOpacity={0} />
-    //             </linearGradient>
-    //           </defs>
-    //           <CartesianGrid strokeDasharray="3 3" />
-    //           <XAxis dataKey="time" />
-    //           <YAxis />
-    //           <Tooltip />
-    //           <Area
-    //             type="monotone"
-    //             dataKey="emissions"
-    //             stroke="#8884d8"
-    //             fillOpacity={1}
-    //             fill="url(#colorEmissions)"
-    //           />
-    //         </AreaChart>
-    //       </div>
+            {/* CO2 */}
+            {metrics.co2Kg != null && (
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <h4 className="font-semibold mb-3">CO₂ Emissions</h4>
+                <div className="grid grid-cols-2 gap-4">
+                  {hasOriginal && (
+                    <div>
+                      <p className="text-xs text-gray-500">Original</p>
+                      <p className="text-lg font-medium">
+                        {metrics.originalCo2Kg} kg
+                      </p>
+                    </div>
+                  )}
+                  <div>
+                    <p className="text-xs text-[#034626]">Optimized</p>
+                    <p className="text-lg font-medium text-[#034626]">
+                      {metrics.co2Kg} kg
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
 
-    //       {/* Export Button */}
-    //       <button
-    //         onClick={handleExport}
-    //         className="w-full bg-blue-500 text-white py-2 px-4 rounded-lg hover:bg-blue-600 transition-colors"
-    //       >
-    //         Export Report
-    //       </button>
-    //     </div>
-    //   </div>
-    // </div>
+            {/* Export */}
+            <button
+              onClick={handleExport}
+              className="w-full bg-[#034626] text-white py-2 px-4 rounded-lg hover:bg-[#023219] transition-colors"
+            >
+              Export Report
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
   );
 };
 
@@ -542,10 +427,17 @@ const AnalyticsPanel = ({ isOpen, onClose, route, formData }: any) => {
  * - startCoords: Coordinates of the route start point
  * - endCoords: Coordinates of the route end point
  * - onBack: Function to navigate back to the previous UI step
- * 
+ *
  * Note: The map uses OpenStreetMap tiles via CartoDB.
  */
-const MapView = ({ formData, route, startCoords, endCoords, onBack }: any) => {
+const MapView = ({
+  formData,
+  route,
+  startCoords,
+  endCoords,
+  onBack,
+  metrics,
+}: any) => {
   const [isAnalyticsPanelOpen, setIsAnalyticsPanelOpen] = useState(false);
 
   /**
@@ -582,25 +474,27 @@ const MapView = ({ formData, route, startCoords, endCoords, onBack }: any) => {
             route={route}
           />
 
-          {/* Render a marker for each stop, looping over the stops list and returning a marker for each one */}
+          {/* Render a marker for each stop */}
           {formData.stops.map(
             (
               stop: { location: string; coords: { lat: number; lng: number } },
               index: number
             ) => {
-              const { lat, lng } = stop.coords || {};
               if (!stop.coords) return null;
-
-              // Skip the last marker since it's the same as the start (closed loop)
-              if (index === formData.stops.length - 1) return null;
-
+              const total = formData.stops.length;
+              const label =
+                index === 0
+                  ? `Start: ${stop.location}`
+                  : index === total - 1
+                    ? `End: ${stop.location}`
+                    : `Stop ${index}: ${stop.location}`;
               return (
                 <Marker
                   key={index}
                   position={[stop.coords.lat, stop.coords.lng]}
                   icon={
                     new L.Icon({
-                      iconUrl: `https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-${getMarkerColor(index, formData.stops.length)}.png`,
+                      iconUrl: `https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-${getMarkerColor(index, total)}.png`,
                       shadowUrl:
                         'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.3.1/images/marker-shadow.png',
                       iconSize: [25, 41],
@@ -610,11 +504,7 @@ const MapView = ({ formData, route, startCoords, endCoords, onBack }: any) => {
                     })
                   }
                 >
-                  <Popup>
-                    {index === 0
-                      ? `Start/End: ${stop.location}`
-                      : `Stop ${index}: ${stop.location}`}
-                  </Popup>
+                  <Popup>{label}</Popup>
                 </Marker>
               );
             }
@@ -629,20 +519,95 @@ const MapView = ({ formData, route, startCoords, endCoords, onBack }: any) => {
       </div>
 
       {/* Top navigation bar */}
-      <div className="absolute top-0 w-full p-4 z-[1000] flex justify-between items-center text-black">
-        <button
-          onClick={onBack}
-          className="bg-white rounded-lg px-4 py-2 shadow-lg hover:bg-gray-50 flex items-center gap-2"
-        >
-          <span>Back</span>
-        </button>
-        {/* ANALYTICS BUTTON */}
-        {/* <button
-          onClick={() => setIsAnalyticsPanelOpen(true)}
-          className="bg-white rounded-lg px-4 py-2 shadow-lg hover:bg-gray-50 flex items-center gap-2"
-        >
-          <span>Analytics</span>
-        </button> */}
+      <div className="absolute top-0 w-full p-4 z-[1000] flex justify-between items-start text-black">
+        <div className="flex gap-2">
+          <button
+            onClick={onBack}
+            className="bg-white rounded-lg px-4 py-2 shadow-lg hover:bg-gray-50 flex items-center gap-2"
+          >
+            <span>Back</span>
+          </button>
+          <button
+            onClick={() => setIsAnalyticsPanelOpen((o) => !o)}
+            className="bg-[#034626] text-white rounded-lg px-4 py-2 shadow-lg hover:bg-[#023219] flex items-center gap-2"
+          >
+            <span>Analytics</span>
+          </button>
+        </div>
+
+        {/* Route metrics pills */}
+        {metrics &&
+          (metrics.distanceKm != null || metrics.fuelLiters != null) &&
+          (() => {
+            const fmtDur = (min: number) =>
+              min >= 60
+                ? `${Math.floor(min / 60)}h ${Math.round(min % 60)}m`
+                : `${Math.round(min)}m`;
+            const fuelSaved =
+              metrics.originalFuelLiters != null && metrics.fuelLiters != null
+                ? Math.round(
+                    (metrics.originalFuelLiters - metrics.fuelLiters) * 100
+                  ) / 100
+                : null;
+            const co2Saved =
+              metrics.originalCo2Kg != null && metrics.co2Kg != null
+                ? Math.round((metrics.originalCo2Kg - metrics.co2Kg) * 100) /
+                  100
+                : null;
+            const fuelSavedPct =
+              metrics.originalFuelLiters != null &&
+              metrics.originalFuelLiters > 0 &&
+              fuelSaved != null
+                ? ((fuelSaved / metrics.originalFuelLiters) * 100).toFixed(1)
+                : null;
+            return (
+              <div className="flex gap-2 flex-wrap justify-end">
+                {metrics.distanceKm != null && (
+                  <div className="bg-white rounded-lg px-3 py-2 shadow-lg text-sm font-medium">
+                    <span className="text-gray-500">Distance&nbsp;</span>
+                    <span className="text-[#034626] font-bold">
+                      {metrics.distanceKm} km
+                    </span>
+                  </div>
+                )}
+                {metrics.durationMin != null && (
+                  <div className="bg-white rounded-lg px-3 py-2 shadow-lg text-sm font-medium">
+                    <span className="text-gray-500">Duration&nbsp;</span>
+                    <span className="text-[#034626] font-bold">
+                      {fmtDur(metrics.durationMin)}
+                    </span>
+                  </div>
+                )}
+                {metrics.fuelLiters != null && (
+                  <div className="bg-white rounded-lg px-3 py-2 shadow-lg text-sm font-medium">
+                    <span className="text-gray-500">Fuel&nbsp;</span>
+                    <span className="text-[#034626] font-bold">
+                      {metrics.fuelLiters} L
+                    </span>
+                    {fuelSaved != null && fuelSaved > 0 && (
+                      <span className="text-green-600 text-xs ml-1">
+                        ↓{fuelSaved} L
+                        {fuelSavedPct ? ` (${fuelSavedPct}%)` : ''}
+                      </span>
+                    )}
+                  </div>
+                )}
+                {metrics.co2Kg != null && (
+                  <div className="bg-white rounded-lg px-3 py-2 shadow-lg text-sm font-medium">
+                    <span className="text-gray-500">CO₂&nbsp;</span>
+                    <span className="text-[#034626] font-bold">
+                      {metrics.co2Kg} kg
+                    </span>
+                    {co2Saved != null && co2Saved > 0 && (
+                      <span className="text-green-600 text-xs ml-1">
+                        ↓{co2Saved} kg
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
       </div>
 
       {/* Map legend component (assumed to explain marker colors) */}
@@ -652,7 +617,7 @@ const MapView = ({ formData, route, startCoords, endCoords, onBack }: any) => {
       <AnalyticsPanel
         isOpen={isAnalyticsPanelOpen}
         onClose={() => setIsAnalyticsPanelOpen(false)}
-        route={route}
+        metrics={metrics}
         formData={formData}
       />
     </div>

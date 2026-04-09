@@ -44,7 +44,7 @@ def main():
     n = len(location_names)
 
     initial_route = list(range(n)) + [0]
-    runs = 5000
+    runs = 1000
 
     sa_vs_tsp_pcts = []
     sa_vs_init_pcts = []

@@ -45,6 +45,13 @@ next-env.d.ts
 
 # osrm
 osrm-ny/
+osrm-data/
+
+# data run outputs (keep the data/ folder itself)
+data/*/
+
+# claude
+.claude/
 
 #ml work
 ml/Archive/

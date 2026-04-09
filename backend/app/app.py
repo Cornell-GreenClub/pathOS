@@ -18,7 +18,9 @@ import logging
 import requests
 import config
 import time
+from datetime import datetime
 from route_optimizer import RouteOptimizer
+from matrix_builder import MatrixBuilder, PHYSICS_BETAS, CO2_KG_PER_LITER
 
 # Configure logging
 logging.basicConfig(
@@ -35,6 +37,8 @@ try:
 except Exception as e:
     logging.critical(f"Could not initialize RouteOptimizer: {e}")
     optimizer = None
+
+matrix_builder = MatrixBuilder(ors_api_key=config.ORS_API_KEY)
 
 
 
@@ -168,7 +172,9 @@ def optimize_route():
     if not isinstance(stops, list) or len(stops) < 2:
         return jsonify({"error": "Payload must include a 'stops' list with at least 2 stops."}), 400
 
-    maintain_order = bool(payload.get("maintainOrder", False))
+    maintain_order     = bool(payload.get("maintainOrder", False))
+    vehicle_weight_kg  = float(payload.get("vehicleWeightKg", 9000))
+    fuel_type          = str(payload.get("fuelType", "diesel")).lower()
 
     # Validate coords
     for i, s in enumerate(stops):
@@ -183,6 +189,14 @@ def optimize_route():
         # --- PRINT ORIGINAL STOPS ---
         print_stops("ORIGINAL STOP ORDER", normalize_stops_for_printing(stops))
 
+        run_id   = None
+        matrices = {}
+        reordered = None
+        original_distance_km  = None
+        original_duration_min = None
+        original_fuel_liters  = None
+        original_co2_kg       = None
+
         if maintain_order:
             ordered_stops = stops
         else:
@@ -192,35 +206,90 @@ def optimize_route():
             table_data = table_resp.json()
 
             # Inject original location names into the OSRM response so the optimizer prints them
-            # (Matches logic in calculate_sample_savings.py)
             if table_data and 'sources' in table_data:
                 for i, source in enumerate(table_data['sources']):
-                    # OSRM sources correspond to the input coordinates order
                     if i < len(stops):
                         source['name'] = stops[i].get('location', 'Unknown')
 
-            # --- Call RouteOptimizer ---
-            distances = table_data.get("distances", [])
-            n = len(distances)
-            
-            # Bridge the new complex ML optimizer by passing distances as the primary cost function
-            # and zeroing out the advanced machine-learning metrics until they are fully integrated.
-            elev_matrix = [[0.0] * n for _ in range(n)]
-            speed_matrix = [[1.0] * n for _ in range(n)]
-            weights = {i: 0.0 for i in range(n)}
-            betas = {"Intercept": 0.0, "Total_Distance_km": 1.0, "Dist_x_Weight": 0.0, "Elev_x_Weight": 0.0, "Dist_x_Speed2": 0.0}
-            base_veh = 1000.0
-            names = [str(i) for i in range(n)]
+            osrm_distances_m = table_data.get("distances", [])
+            osrm_durations_s = table_data.get("durations", [])
+            n = len(osrm_distances_m)
 
+            # --- Build full physics matrices ---
+            coords = [s["coords"] for s in stops]
+            matrices = matrix_builder.build(
+                osrm_distances_m=osrm_distances_m,
+                osrm_durations_s=osrm_durations_s,
+                coords_latlon=coords,
+                vehicle_weight_kg=vehicle_weight_kg,
+                fuel_type=fuel_type,
+            )
+
+            # --- Build per-stop pickup weights from frontend inputs ---
+            # TSP uses the weight-agnostic fuel_matrix (base vehicle weight only).
+            # SA accumulates these weights stop-by-stop (load-dependent VRP).
+            weights = {i: float(stops[i].get('weightKg', 0)) for i in range(n)}
+            total_pickup_kg = sum(weights.values())
+            logging.info(
+                f"Per-stop weights: {weights} | total pickup: {total_pickup_kg:.1f} kg"
+            )
+
+            # --- Compute original (sequential) route metrics for before/after comparison ---
+            # Fuel uses optimizer._route_cost so accumulated pickup weights are applied,
+            # matching exactly how the optimizer evaluates routes (multiply by fuel_correction
+            # to convert raw model output → litres).
+            original_route = list(range(n))
+            original_distance_km = round(
+                sum(matrices['distance_matrix'][i][i + 1] for i in range(n - 1)), 2
+            )
+            original_duration_min = round(
+                sum(matrices['duration_matrix'][i][i + 1] for i in range(n - 1)), 1
+            )
+            original_fuel_liters = round(
+                optimizer._route_cost(
+                    original_route,
+                    matrices['distance_matrix'], matrices['elevation_matrix'],
+                    matrices['speed_matrix'], weights, PHYSICS_BETAS, vehicle_weight_kg,
+                ) * matrices['fuel_correction'], 2
+            )
+            original_co2_kg = round(
+                original_fuel_liters * CO2_KG_PER_LITER.get(fuel_type, 2.68), 2
+            )
+            logging.info(
+                f"Original route: {original_distance_km} km | "
+                f"{original_duration_min} min | {original_fuel_liters} L | {original_co2_kg} kg CO2"
+            )
+
+            # --- Save matrices to pathos/data/ ---
+            run_id = datetime.utcnow().strftime('%Y%m%d_%H%M%S') + f'_{n}stops'
+            location_names = [s.get('location', f'Stop_{i}') for i, s in enumerate(stops)]
+            try:
+                matrix_path = matrix_builder.save(
+                    matrices=matrices,
+                    run_id=run_id,
+                    location_names=location_names,
+                    stop_weights=weights,
+                    metadata={
+                        'osrm_host': osrm_host,
+                        'total_pickup_kg': total_pickup_kg,
+                        'max_loaded_kg': vehicle_weight_kg + total_pickup_kg,
+                    },
+                )
+                logging.info(f"Matrices saved: {matrix_path}")
+            except Exception as save_err:
+                logging.warning(f"Could not save matrices: {save_err}")
+                matrix_path = None
+
+            # --- Call RouteOptimizer with real physics matrices + stop weights ---
             reordered = optimizer.optimize_route(
-                fuel_matrix=distances,
-                distance_matrix=distances,
-                elevation_matrix=elev_matrix,
-                speed_matrix=speed_matrix,
+                fuel_matrix=matrices['fuel_matrix'],
+                distance_matrix=matrices['distance_matrix'],
+                elevation_matrix=matrices['elevation_matrix'],
+                speed_matrix=matrices['speed_matrix'],
                 weights=weights,
-                betas=betas,
-                base_vehicle_kg=base_veh,
-                location_names=names
+                betas=PHYSICS_BETAS,
+                base_vehicle_kg=vehicle_weight_kg,
+                location_names=location_names,
             )
 
             # --- PRINT RAW OPTIMIZER OUTPUT ---
@@ -262,14 +331,58 @@ def optimize_route():
         geometry_coords = route_data["routes"][0]["geometry"]["coordinates"]
         route_geometry_latlng = [[coord[1], coord[0]] for coord in geometry_coords]
 
-        distance = route_data["routes"][0].get("distance")
-        duration = route_data["routes"][0].get("duration")
+        distance = route_data["routes"][0].get("distance")   # metres
+        duration = route_data["routes"][0].get("duration")   # seconds
+
+        # --- Compute fuel / CO2 metrics if matrices were built ---
+        fuel_liters = None
+        co2_kg      = None
+        # Default to OSRM Route API values; overridden by matrix values when available
+        distance_km  = round(distance / 1000, 2) if distance else None
+        duration_min = round(duration / 60, 1)   if duration else None
+
+        if not maintain_order and isinstance(reordered, list) and all(isinstance(x, int) for x in reordered):
+            try:
+                # Weight-aware fuel: same accumulated-weight model the optimizer used
+                fuel_liters = round(
+                    optimizer._route_cost(
+                        reordered,
+                        matrices['distance_matrix'], matrices['elevation_matrix'],
+                        matrices['speed_matrix'], weights, PHYSICS_BETAS, vehicle_weight_kg,
+                    ) * matrices['fuel_correction'], 2
+                )
+                co2_kg = round(
+                    fuel_liters * CO2_KG_PER_LITER.get(fuel_type, 2.68), 2
+                )
+                # Recompute distance/duration from matrices so they're comparable to
+                # originalDistanceKm / originalDurationMin (same data source, apples-to-apples)
+                distance_km = round(
+                    sum(matrices['distance_matrix'][reordered[i]][reordered[i + 1]]
+                        for i in range(len(reordered) - 1)), 2
+                )
+                duration_min = round(
+                    sum(matrices['duration_matrix'][reordered[i]][reordered[i + 1]]
+                        for i in range(len(reordered) - 1)), 1
+                )
+            except Exception as metric_err:
+                logging.warning(f"Could not compute fuel metrics: {metric_err}")
 
         return jsonify({
-            "optimizedStops": ordered_stops,
-            "routeGeometry": route_geometry_latlng,
-            "distance": distance,
-            "duration": duration
+            "optimizedStops":       ordered_stops,
+            "routeGeometry":        route_geometry_latlng,
+            "distance":             distance,
+            "duration":             duration,
+            "distanceKm":           distance_km,
+            "durationMin":          duration_min,
+            "fuelLiters":           fuel_liters,
+            "co2Kg":                co2_kg,
+            "originalDistanceKm":   original_distance_km  if not maintain_order else None,
+            "originalDurationMin":  original_duration_min if not maintain_order else None,
+            "originalFuelLiters":   original_fuel_liters  if not maintain_order else None,
+            "originalCo2Kg":        original_co2_kg       if not maintain_order else None,
+            "vehicleWeightKg":      vehicle_weight_kg,
+            "fuelType":             fuel_type,
+            "matrixRunId":          run_id if not maintain_order else None,
         })
 
     except Exception as e:
