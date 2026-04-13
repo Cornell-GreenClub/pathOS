@@ -72,13 +72,16 @@ This configuration deploys a high-performance OSRM instance on AWS designed to h
        "Statement": [
            {
                "Effect": "Allow",
-               "Action": ["ec2:StartInstances", "ec2:StopInstances"],
-               "Resource": "arn:aws:ec2:us-east-1:ACCOUNT_ID:instance/i-YOUR_ID"
+               "Action": ["ec2:StartInstances", "ec2:StopInstances", "ec2:DescribeInstances"],
+               "Resource": "*"
            },
            {
                "Effect": "Allow",
-               "Action": "ec2:DescribeInstances",
-               "Resource": "*"
+               "Action": ["scheduler:UpdateSchedule", "iam:PassRole"],
+               "Resource": [
+                   "arn:aws:scheduler:us-east-1:ACCOUNT_ID:schedule/default/osrm-10min-timer",
+                   "arn:aws:iam::ACCOUNT_ID:role/osrm-scheduler-role"
+               ]
            }
        ]
    }
@@ -97,16 +100,35 @@ This configuration deploys a high-performance OSRM instance on AWS designed to h
 import json
 import boto3
 import os
+from datetime import datetime, timedelta
 
 INSTANCE_ID = "i-YOUR_ID"
 REGION = "us-east-1"
-SECRET_VALUE = "YOUR_SECURE_SECRET_HERE"  # Or use os.environ.get('SECRET_VALUE')
+SECRET_VALUE = "YOUR_SECURE_SECRET_HERE"
 
 def lambda_handler(event, context):
+    SCHEDULE_NAME = 'osrm-10min-timer'
+    HIBERNATE_LAMBDA_ARN = 'arn:aws:lambda:us-east-1:ACCOUNT_ID:function:osrm-hibernate'
+    SCHEDULER_ROLE_ARN = 'arn:aws:iam::ACCOUNT_ID:role/osrm-scheduler-role'
+
     headers = {k.lower(): v for k, v in event.get('headers', {}).items()}
-    
     if headers.get('x-osrm-secret') != SECRET_VALUE:
         return {'statusCode': 401, 'body': json.dumps({"error": "Unauthorized"})}
+        
+    new_time = datetime.utcnow() + timedelta(minutes=10)
+    time_string = new_time.strftime('%Y-%m-%dT%H:%M:%S')
+    
+    scheduler = boto3.client('scheduler', region_name=REGION)
+    scheduler.update_schedule(
+        Name=SCHEDULE_NAME,
+        ScheduleExpression=f"at({time_string})",
+        Target={
+            'Arn': HIBERNATE_LAMBDA_ARN,
+            'RoleArn': SCHEDULER_ROLE_ARN
+        },
+        FlexibleTimeWindow={'Mode': 'OFF'},
+        ActionAfterCompletion='NONE'
+    )
 
     ec2 = boto3.client("ec2", region_name=REGION)
     res = ec2.describe_instances(InstanceIds=[INSTANCE_ID])
@@ -115,10 +137,25 @@ def lambda_handler(event, context):
 
     if state == "running":
         ip = instance.get("PublicIpAddress")
-        return {"statusCode": 200, "body": json.dumps({"status": "running", "ip": ip})}
-
-    ec2.start_instances(InstanceIds=[INSTANCE_ID])
-    return {"statusCode": 202, "body": json.dumps({"status": "starting"})}
+        return {
+            "statusCode": 200, 
+            "body": json.dumps({
+                "status": "running", 
+                "ip": ip, 
+                "timer_set_for": time_string
+            })
+        }
+    
+    if state != "pending":
+        ec2.start_instances(InstanceIds=[INSTANCE_ID])
+            
+    return {
+        "statusCode": 202, 
+        "body": json.dumps({
+            "status": "starting", 
+            "timer_set_for": time_string
+        })
+    }
 ```
 
 ### Lambda 2: `osrm-hibernate` (Python 3.12)
@@ -137,21 +174,12 @@ def lambda_handler(event, context):
 
 ---
 
-## Phase 5: Automation (CloudWatch)
+## Phase 5: EventBridge Scheduler Setup
 
-1. **Create a CloudWatch Alarm** for the instance metric `NetworkIn`.
-2. **Threshold:** 
-   - **Period:** 10 Minutes.
-   - **Condition:** `< 50000` Bytes.
-3. **Action:** Set the "In Alarm" state to trigger the `osrm-hibernate` Lambda.
-4. **Grant CloudWatch Permissions:**
-   - By default, CloudWatch cannot invoke your Lambda. You must add a Resource-Based Policy.
-   - Go to the `osrm-hibernate` Lambda in the AWS Console > **Configuration** tab > **Permissions**.
-   - Under **Resource-based policy statements**, click **Add permissions**.
-   - Select **AWS Service** and select **Other**.
-   - **Principal:** `lambda.amazonaws.com`
-   - **Source ARN:** Paste your CloudWatch Alarm ARN (e.g., `arn:aws:cloudwatch:us-east-1:...`).
-   - **Action:** `lambda:InvokeFunction`.
+1. **Create a schedule** named `osrm-10min-timer`.
+2. **Set the type** to "One-time schedule" (the Lambda will update the date/time dynamically).
+3. **Target:** `osrm-hibernate` Lambda.
+4. **Role:** Create `osrm-scheduler-role` with a trust relationship allowing `scheduler.amazonaws.com` to assume the role.
 
 ---
 
@@ -166,6 +194,10 @@ def lambda_handler(event, context):
    - **Step B:** If status is "starting," poll every 5s until "running" is returned with an IP.
    - **Step C:** Once the instance is up, softly poll the OSRM port (5000). 
      > *Note:* Because hibernation seamlessly preserves Docker's RAM state, the routing engine will typically answer near-instantaneously organically, but keeping a safety-net polling loop guarantees flawless integration.
+
+3. **Web Server Configuration (Render):**
+   - You must set the environment variable `GUNICORN_CMD_ARGS` to `--timeout 120`.
+   - This prevents the gateway from killing the process while OSRM loads the NY map data (~60s).
 
 ---
 

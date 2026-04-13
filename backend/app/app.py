@@ -79,7 +79,7 @@ def get_osrm_host():
         return config.OSRM_HOST
 
     headers = {"x-osrm-secret": config.OSRM_WAKE_SECRET}
-    max_retries = 15  # Up to 75 seconds
+    max_retries = 18  # Up to 90 seconds
     
     for i in range(max_retries):
         try:
@@ -93,6 +93,8 @@ def get_osrm_host():
                         return osrm_url
                     except requests.exceptions.RequestException:
                         logging.info("EC2 running, waiting for OSRM Engine to load into memory...")
+                else:
+                    logging.info(f"Lambda OK, but EC2 not running yet. Lambda output: {data}")
             elif resp.status_code == 202:
                 logging.info(f"OSRM server is waking up... (attempt {i+1}/{max_retries})")
             else:
@@ -103,7 +105,7 @@ def get_osrm_host():
         time.sleep(5)
         
     logging.error("Failed to wake OSRM server within the timeout.")
-    return config.OSRM_HOST
+    return None
 
 
 def format_table_url(stops, osrm_host=None):
@@ -185,6 +187,8 @@ def optimize_route():
     try:
         # --- Wake up OSRM server ---
         osrm_host = get_osrm_host()
+        if not osrm_host:
+            return jsonify({"error": "The OSRM Server is still warming up. Please try again in a moment."}), 503
 
         # --- PRINT ORIGINAL STOPS ---
         print_stops("ORIGINAL STOP ORDER", normalize_stops_for_printing(stops))

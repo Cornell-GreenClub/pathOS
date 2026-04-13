@@ -1,0 +1,39 @@
+{
+  "by_index": {
+    "0": 0.0,
+    "1": 514.31,
+    "2": 326.53,
+    "3": 251.81,
+    "4": 240.97,
+    "5": 251.11,
+    "6": 357.22,
+    "7": 242.5,
+    "8": 273.33,
+    "9": 484.31,
+    "10": 0.0,
+    "11": 0.0,
+    "12": 271.11,
+    "13": 81.11,
+    "14": 0.0
+  },
+  "by_name": {
+    "TST BOCES, 555 Warren Road, Northeast Ithaca, NY 14850": 0.0,
+    "Dewitt Middle School, 560 Warren Road, Ithaca, NY 14850": 514.31,
+    "Northeast Elementary School, 425 Winthrop Dr, Ithaca, NY 14850": 326.53,
+    "Cayuga Heights Elementary School, 110 E Upland Rd, Ithaca, NY 14850": 251.81,
+    "Belle Sherman Elementary School, Valley Road, Ithaca, NY 14853": 240.97,
+    "Caroline Elementary School, Slaterville Road, Besemer, NY 14881": 251.11,
+    "South Hill Elementary School, 520 Hudson Street, Ithaca, NY 14850": 357.22,
+    "Beverly J. Martin Elementary School, 302 West Buffalo Street, Ithaca, NY": 242.5,
+    "Fall Creek School, Linn Street, Ithaca, NY 14850": 273.33,
+    "Boynton Middle School, 1601 North Cayuga Street, Ithaca, NY 14850": 484.31,
+    "602 Hancock Street, Ithaca, NY 14850": 0.0,
+    "737 Willow Ave, Ithaca, NY 14850": 0.0,
+    "Enfield School, 20 Enfield Main Road, Ithaca, NY 14850": 271.11,
+    "Lehmann Alternative Community School, 111 Chestnut Street, Ithaca, NY": 81.11,
+    "Recycling and Solid Waste Center, 160 Commercial Avenue, Ithaca, NY": 0.0
+  },
+  "total_pickup_kg": 3294.31,
+  "base_vehicle_kg": 9000.0,
+  "max_loaded_kg": 12294.31
+}
