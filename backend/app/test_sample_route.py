@@ -44,11 +44,16 @@ def main():
     location_names = dist_names
     n = len(location_names)
 
-    initial_route = list(range(n)) + [0]
-    runs = 1000
+    initial_route = list(range(n))
+    runs = 1
+
+    initial_distance = sum(distance_matrix[initial_route[i]][initial_route[i + 1]]
+                           for i in range(len(initial_route) - 1))
 
     final_costs = []
     reduction_pcts = []
+    best_route = None
+    best_cost = float('inf')
 
     print(f"Running optimizer {runs} times...\n")
 
@@ -75,20 +80,28 @@ def main():
         final_costs.append(final_cost)
         reduction_pcts.append(reduction)
 
+        if final_cost < best_cost:
+            best_cost = final_cost
+            best_route = final_route
+
         print(f"  Run {i:3d}: cost = {final_cost:.4f}  |  reduction vs initial = {reduction:+.2f}%")
 
     avg_cost = sum(final_costs) / runs
     avg_reduction = sum(reduction_pcts) / runs
     best_reduction = max(reduction_pcts)
-    best_cost = min(final_costs)
+
+    best_distance = sum(distance_matrix[best_route[i]][best_route[i + 1]]
+                        for i in range(len(best_route) - 1))
+    distance_saved = initial_distance - best_distance
 
     print("\n" + "=" * 60)
     print(f"RESULTS OVER {runs} RUNS")
     print("=" * 60)
-    print(f"  Avg cost:       {avg_cost:.4f}")
-    print(f"  Avg reduction:  {avg_reduction:+.2f}%")
-    print(f"  Best cost:      {best_cost:.4f}")
-    print(f"  Best reduction: {best_reduction:+.2f}%")
+    print(f"  Avg cost:           {avg_cost:.4f}")
+    print(f"  Avg reduction:      {avg_reduction:+.2f}%")
+    print(f"  Best cost:          {best_cost:.4f}")
+    print(f"  Best reduction:     {best_reduction:+.2f}%")
+    print(f"  Distance saved:     {distance_saved:.2f} km  ({initial_distance:.2f} -> {best_distance:.2f})")
     print("=" * 60)
 
 if __name__ == "__main__":
