@@ -93,6 +93,8 @@ def get_osrm_host():
                         return osrm_url
                     except requests.exceptions.RequestException:
                         logging.info("EC2 running, waiting for OSRM Engine to load into memory...")
+                else:
+                    logging.info(f"Lambda OK, but EC2 not running yet. Lambda output: {data}")
             elif resp.status_code == 202:
                 logging.info(f"OSRM server is waking up... (attempt {i+1}/{max_retries})")
             else:
