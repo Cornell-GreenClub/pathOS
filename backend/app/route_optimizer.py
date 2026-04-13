@@ -159,17 +159,13 @@ class RouteOptimizer:
             if temp < min_temp:
                 break
 
-            # 2-opt
+            # 2-opt: 50% swap, 50% segment reversal
             pos_a, pos_b = sorted(random.sample(swappable, 2))
             candidate = current.copy()
             if random.random() < 0.5:
                 candidate[pos_a], candidate[pos_b] = candidate[pos_b], candidate[pos_a]
             else:
                 candidate[pos_a:pos_b + 1] = reversed(candidate[pos_a:pos_b + 1])
-
-            pos_a, pos_b = random.sample(swappable, 2)
-            candidate = current.copy()
-            candidate[pos_a], candidate[pos_b] = candidate[pos_b], candidate[pos_a]
 
             cand_cost = self._route_cost(candidate, distance_matrix, elevation_matrix,
                                           speed_matrix, weights, betas, base_vehicle_kg)
