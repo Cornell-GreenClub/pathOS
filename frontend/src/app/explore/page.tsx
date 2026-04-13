@@ -26,6 +26,8 @@ interface RouteMetrics {
   originalFuelLiters:   number | null;
   originalCo2Kg:        number | null;
   matrixRunId:          string | null;
+  modelLoaded:          boolean | null;
+  modelR2:              number | null;
 }
 
 const presetRoute = {
@@ -208,7 +210,7 @@ const ExplorePage = () => {
   const [metrics, setMetrics] = useState<RouteMetrics>({
     distanceKm: null, durationMin: null, fuelLiters: null, co2Kg: null,
     originalDistanceKm: null, originalDurationMin: null, originalFuelLiters: null, originalCo2Kg: null,
-    matrixRunId: null,
+    matrixRunId: null, modelLoaded: null, modelR2: null,
   });
 
   // Add these computed values
@@ -352,6 +354,8 @@ const ExplorePage = () => {
         originalFuelLiters:  data.originalFuelLiters  ?? null,
         originalCo2Kg:       data.originalCo2Kg       ?? null,
         matrixRunId:         data.matrixRunId         ?? null,
+        modelLoaded:         data.modelLoaded         ?? null,
+        modelR2:             data.modelR2             ?? null,
       });
 
       // Update map route

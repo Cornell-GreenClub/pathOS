@@ -11,6 +11,7 @@ Output: fuel_model_physics.joblib, fuel_model_lasso.joblib
 
 import pandas as pd
 import numpy as np
+from pathlib import Path
 from sklearn.model_selection import train_test_split, cross_val_score
 from sklearn.linear_model import LinearRegression, LassoCV
 from sklearn.preprocessing import StandardScaler
@@ -18,6 +19,13 @@ from sklearn.metrics import mean_squared_error, mean_absolute_percentage_error, 
 import joblib
 import warnings
 warnings.filterwarnings('ignore')
+
+# Paths relative to this file's location:
+# ml/New_Code/ML_Regression/linear_regression.py
+# ml/Final_Outputs/
+_SCRIPT_DIR = Path(__file__).parent
+_FINAL_OUTPUTS_DIR = _SCRIPT_DIR.parent.parent / 'Final_Outputs'
+_INPUT_CSV = _FINAL_OUTPUTS_DIR / 'trip_summaries_clean.csv'
 
 # ============================================================
 # 1. LOAD DATA
@@ -27,7 +35,7 @@ print("="*60)
 print("FUEL CONSUMPTION MODEL TRAINING")
 print("="*60)
 
-df = pd.read_csv('/Users/fli6/Desktop/pathOS/pathOS/ml/Final_Outputs/trip_summaries_clean.csv')
+df = pd.read_csv(_INPUT_CSV)
 print(f"\nLoaded {len(df):,} trips")
 
 # ============================================================
@@ -273,13 +281,14 @@ print(f"\n{'='*60}")
 print("SAVING MODELS")
 print(f"{'='*60}")
 
-output_dir = '/Users/fli6/Desktop/pathOS/pathOS/ml/Final_Outputs'
+output_dir = _FINAL_OUTPUTS_DIR
+output_dir.mkdir(parents=True, exist_ok=True)
 
 joblib.dump({
     'model': model_physics,
     'features': physics_features,
     'metrics': {'r2': r2_phys_test, 'rmse': rmse_phys, 'mape': mape_phys}
-}, output_dir + 'fuel_model_physics.joblib')
+}, output_dir / 'fuel_model_physics.joblib')
 
 joblib.dump({
     'model': model_lasso,
@@ -287,7 +296,7 @@ joblib.dump({
     'features': all_features,
     'surviving_features': surviving_features,
     'metrics': {'r2': r2_lasso_test, 'rmse': rmse_lasso, 'mape': mape_lasso}
-}, output_dir + 'fuel_model_lasso.joblib')
+}, output_dir / 'fuel_model_lasso.joblib')
 
 print(f"✓ Saved fuel_model_physics.joblib")
 print(f"✓ Saved fuel_model_lasso.joblib")

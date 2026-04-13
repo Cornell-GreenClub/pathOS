@@ -29,13 +29,21 @@ try:
 except ImportError:
     _ORS_AVAILABLE = False
 
-# Physics model fallback coefficients (trained on eVED data, March 2026)
-_COEFF = {
-    'intercept':       0.025024,
+try:
+    import joblib
+    import numpy as np
+    _JOBLIB_AVAILABLE = True
+except ImportError:
+    _JOBLIB_AVAILABLE = False
+
+# Hardcoded fallback coefficients (trained on eVED data, March 2026).
+# Used only when the .joblib model file cannot be found.
+_FALLBACK_COEFF = {
+    'intercept':         0.025024,
     'Total_Distance_km': 0.06962583,
-    'Dist_x_Weight':   0.00005552431,
-    'Elev_x_Weight':   0.000002550080,
-    'Dist_x_Speed2':   0.000001102072,
+    'Dist_x_Weight':     0.00005552431,
+    'Elev_x_Weight':     0.000002550080,
+    'Dist_x_Speed2':     0.000001102072,
 }
 
 DIESEL_CORRECTION   = 0.65
@@ -46,14 +54,11 @@ CO2_KG_PER_LITER = {
     'gasoline': 2.31,
 }
 
-# Betas for RouteOptimizer (match physics model coefficients exactly)
-PHYSICS_BETAS = {
-    'Intercept':         _COEFF['intercept'],
-    'Total_Distance_km': _COEFF['Total_Distance_km'],
-    'Dist_x_Weight':     _COEFF['Dist_x_Weight'],
-    'Elev_x_Weight':     _COEFF['Elev_x_Weight'],
-    'Dist_x_Speed2':     _COEFF['Dist_x_Speed2'],
-}
+# Default model path: ml/Final_Outputs/ relative to the project root.
+# backend/app/matrix_builder.py → parent.parent.parent = project root
+_DEFAULT_MODEL_PATH = (
+    Path(__file__).parent.parent.parent / 'ml' / 'Final_Outputs' / 'fuel_model_physics.joblib'
+)
 
 
 class MatrixBuilder:
@@ -71,9 +76,58 @@ class MatrixBuilder:
             except Exception as exc:
                 logging.warning(f"ORS client init failed: {exc}")
 
+        # --- Load trained physics model ---
+        self._sklearn_model = None
+        self._model_metrics = None
+        self._coeff = dict(_FALLBACK_COEFF)  # start with fallback; overwritten if model loads
+
+        if _JOBLIB_AVAILABLE:
+            _env_path = os.environ.get('MODEL_PATH', '')
+            model_path = Path(_env_path) if _env_path else _DEFAULT_MODEL_PATH
+            try:
+                model_data = joblib.load(model_path)
+                sk_model = model_data.get('model') if isinstance(model_data, dict) else model_data
+                if hasattr(sk_model, 'predict') and hasattr(sk_model, 'coef_'):
+                    self._sklearn_model = sk_model
+                    self._model_metrics = model_data.get('metrics') if isinstance(model_data, dict) else None
+                    # Extract coefficients from model so optimizer betas stay in sync
+                    coefs = sk_model.coef_
+                    self._coeff = {
+                        'intercept':         float(sk_model.intercept_),
+                        'Total_Distance_km': float(coefs[0]),
+                        'Dist_x_Weight':     float(coefs[1]),
+                        'Elev_x_Weight':     float(coefs[2]),
+                        'Dist_x_Speed2':     float(coefs[3]),
+                    }
+                    r2 = self._model_metrics.get('r2') if self._model_metrics else None
+                    logging.info(
+                        f"Loaded fuel model from: {model_path}"
+                        + (f" (R²={r2:.4f})" if r2 is not None else "")
+                    )
+                else:
+                    logging.warning("Model file found but object is not a fitted sklearn model. Using fallback coefficients.")
+            except Exception as exc:
+                logging.warning(f"Could not load fuel model ({exc}). Using fallback coefficients.")
+        else:
+            logging.warning("joblib/numpy not available. Using fallback coefficients.")
+
     # ------------------------------------------------------------------ #
     #  Public API                                                          #
     # ------------------------------------------------------------------ #
+
+    def get_physics_betas(self) -> Dict:
+        """
+        Return the PHYSICS_BETAS dict for RouteOptimizer, sourced from the
+        loaded model if available, otherwise from the hardcoded fallback.
+        """
+        c = self._coeff
+        return {
+            'Intercept':         c['intercept'],
+            'Total_Distance_km': c['Total_Distance_km'],
+            'Dist_x_Weight':     c['Dist_x_Weight'],
+            'Elev_x_Weight':     c['Elev_x_Weight'],
+            'Dist_x_Speed2':     c['Dist_x_Speed2'],
+        }
 
     def build(
         self,
@@ -124,6 +178,8 @@ class MatrixBuilder:
         # Fuel matrix (liters) using physics model
         w = vehicle_weight_kg
         fuel = [[0.0] * n for _ in range(n)]
+        c = self._coeff
+
         for i in range(n):
             for j in range(n):
                 if i == j:
@@ -131,14 +187,23 @@ class MatrixBuilder:
                 d = dist_km[i][j]
                 e = elev_gain[i][j]
                 s = speed_kmh[i][j]
-                raw = (
-                    _COEFF['intercept']
-                    + _COEFF['Total_Distance_km'] * d
-                    + _COEFF['Dist_x_Weight']     * (d * w)
-                    + _COEFF['Elev_x_Weight']      * (e * w)
-                    + _COEFF['Dist_x_Speed2']      * (d * s * s)
-                )
+
+                if self._sklearn_model is not None:
+                    features = np.array([[d, d * w, e * w, d * s * s]])
+                    raw = float(self._sklearn_model.predict(features)[0])
+                else:
+                    raw = (
+                        c['intercept']
+                        + c['Total_Distance_km'] * d
+                        + c['Dist_x_Weight']     * (d * w)
+                        + c['Elev_x_Weight']     * (e * w)
+                        + c['Dist_x_Speed2']     * (d * s * s)
+                    )
                 fuel[i][j] = max(0.0, raw * fuel_correction)
+
+        model_r2 = (
+            self._model_metrics.get('r2') if self._model_metrics else None
+        )
 
         return {
             'distance_matrix':  dist_km,
@@ -150,6 +215,8 @@ class MatrixBuilder:
             'vehicle_weight_kg': vehicle_weight_kg,
             'fuel_type':        fuel_type,
             'fuel_correction':  fuel_correction,
+            'model_loaded':     self._sklearn_model is not None,
+            'model_r2':         model_r2,
         }
 
     def save(

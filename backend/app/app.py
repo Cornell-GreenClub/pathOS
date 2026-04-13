@@ -20,7 +20,7 @@ import config
 import time
 from datetime import datetime
 from route_optimizer import RouteOptimizer
-from matrix_builder import MatrixBuilder, PHYSICS_BETAS, CO2_KG_PER_LITER
+from matrix_builder import MatrixBuilder, CO2_KG_PER_LITER
 
 # Configure logging
 logging.basicConfig(
@@ -225,6 +225,9 @@ def optimize_route():
                 fuel_type=fuel_type,
             )
 
+            # Betas sourced from the loaded model (or fallback coefficients)
+            betas = matrix_builder.get_physics_betas()
+
             # --- Build per-stop pickup weights from frontend inputs ---
             # TSP uses the weight-agnostic fuel_matrix (base vehicle weight only).
             # SA accumulates these weights stop-by-stop (load-dependent VRP).
@@ -249,7 +252,7 @@ def optimize_route():
                 optimizer._route_cost(
                     original_route,
                     matrices['distance_matrix'], matrices['elevation_matrix'],
-                    matrices['speed_matrix'], weights, PHYSICS_BETAS, vehicle_weight_kg,
+                    matrices['speed_matrix'], weights, betas, vehicle_weight_kg,
                 ) * matrices['fuel_correction'], 2
             )
             original_co2_kg = round(
@@ -287,7 +290,7 @@ def optimize_route():
                 elevation_matrix=matrices['elevation_matrix'],
                 speed_matrix=matrices['speed_matrix'],
                 weights=weights,
-                betas=PHYSICS_BETAS,
+                betas=betas,
                 base_vehicle_kg=vehicle_weight_kg,
                 location_names=location_names,
             )
@@ -348,7 +351,7 @@ def optimize_route():
                     optimizer._route_cost(
                         reordered,
                         matrices['distance_matrix'], matrices['elevation_matrix'],
-                        matrices['speed_matrix'], weights, PHYSICS_BETAS, vehicle_weight_kg,
+                        matrices['speed_matrix'], weights, betas, vehicle_weight_kg,
                     ) * matrices['fuel_correction'], 2
                 )
                 co2_kg = round(
@@ -383,6 +386,8 @@ def optimize_route():
             "vehicleWeightKg":      vehicle_weight_kg,
             "fuelType":             fuel_type,
             "matrixRunId":          run_id if not maintain_order else None,
+            "modelLoaded":          matrices.get("model_loaded") if not maintain_order else None,
+            "modelR2":              matrices.get("model_r2")     if not maintain_order else None,
         })
 
     except Exception as e:
