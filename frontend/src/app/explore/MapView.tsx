@@ -4,6 +4,7 @@ import {
   TileLayer,
   Marker,
   Popup,
+  Tooltip,
   Polyline,
   useMap,
 } from 'react-leaflet';
@@ -477,17 +478,15 @@ const MapView = ({
           {/* Render a marker for each stop */}
           {formData.stops.map(
             (
-              stop: { location: string; coords: { lat: number; lng: number } },
+              stop: { location: string; coords: { lat: number; lng: number }; weightKg?: number },
               index: number
             ) => {
               if (!stop.coords) return null;
               const total = formData.stops.length;
-              const label =
-                index === 0
-                  ? `Start: ${stop.location}`
-                  : index === total - 1
-                    ? `End: ${stop.location}`
-                    : `Stop ${index}: ${stop.location}`;
+              const isStart = index === 0;
+              const isEnd = index === total - 1;
+              const weightValue = stop.weightKg ? Number(stop.weightKg) : 0;
+              
               return (
                 <Marker
                   key={index}
@@ -504,7 +503,40 @@ const MapView = ({
                     })
                   }
                 >
-                  <Popup>{label}</Popup>
+                  {/* Hover Tooltip for quick weight info */}
+                  <Tooltip direction="top" offset={[0, -35]} opacity={0.95}>
+                     <div className="text-center font-sans tracking-wide">
+                       <div className="font-semibold text-gray-800">
+                         {isStart ? 'Start' : isEnd ? 'End' : `Stop ${index}`}
+                       </div>
+                       {weightValue > 0 && (
+                         <div className="text-xs text-[#034626] font-extrabold mt-0.5">
+                           {weightValue} kg
+                         </div>
+                       )}
+                     </div>
+                  </Tooltip>
+                  
+                  {/* Click Popup for detailed info */}
+                  <Popup>
+                    <div className="font-sans w-56 -m-1">
+                      <div className="flex items-center gap-2 mb-2 pb-2 border-b border-gray-100">
+                        <div className={`w-3 h-3 rounded-full ${isStart ? 'bg-blue-500' : isEnd ? 'bg-red-500' : 'bg-orange-400'}`}></div>
+                        <span className="font-bold text-gray-800 text-sm">
+                          {isStart ? 'Start Location' : isEnd ? 'Final Destination' : `Stop ${index}`}
+                        </span>
+                      </div>
+                      <p className="text-[13px] text-gray-600 mb-3 leading-snug">
+                        {stop.location}
+                      </p>
+                      {weightValue > 0 && (
+                        <div className="bg-green-50 border border-green-100 rounded-md p-2 flex justify-between items-center">
+                          <span className="text-[11px] text-green-800 font-semibold tracking-wide uppercase">Pickup Weight</span>
+                          <span className="text-sm text-green-900 font-bold">{weightValue} kg</span>
+                        </div>
+                      )}
+                    </div>
+                  </Popup>
                 </Marker>
               );
             }
