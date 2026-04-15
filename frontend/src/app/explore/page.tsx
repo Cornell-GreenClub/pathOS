@@ -207,6 +207,8 @@ const ExplorePage = () => {
   );
   const [isLoading, setIsLoading] = useState(false); // Loading state for the optimization request
   const [loadingMessage, setLoadingMessage] = useState('Optimizing...');
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [error, setError] = useState<string | null>(null);
   const [metrics, setMetrics] = useState<RouteMetrics>({
     distanceKm: null, durationMin: null, fuelLiters: null, co2Kg: null,
     originalDistanceKm: null, originalDurationMin: null, originalFuelLiters: null, originalCo2Kg: null,
@@ -286,10 +288,14 @@ const ExplorePage = () => {
   const optimizeRoute = async () => {
     setIsLoading(true);
     setLoadingMessage('Optimizing...');
-    
+    setError(null);
+    setElapsedSeconds(0);
+
     const timeoutId = setTimeout(() => {
       setLoadingMessage('Waking up server...');
     }, 15000); // 15 seconds
+
+    const timer = setInterval(() => setElapsedSeconds((s) => s + 1), 1000);
 
     try {
       let backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://127.0.0.1:8000';
@@ -334,6 +340,7 @@ const ExplorePage = () => {
 
       if (!response.ok) {
         console.error('Backend error:', data);
+        setError(data.error || data.details || 'Optimization failed. Please try again.');
         return;
       }
 
@@ -364,10 +371,12 @@ const ExplorePage = () => {
       setIsMapView(true);
     } catch (err) {
       console.error('Error calling backend:', err);
-      alert('The server failed to answer or wake up in time. Please click Optimize Route again.');
+      setError('Server did not respond in time. Please try again.');
     } finally {
       clearTimeout(timeoutId);
+      clearInterval(timer);
       setIsLoading(false);
+      setElapsedSeconds(0);
       setLoadingMessage('Optimizing...');
     }
   };
@@ -628,7 +637,6 @@ const ExplorePage = () => {
                     Load sample schools route
                   </button>
                 </div>
-                {/* 
                 <div className="flex items-center w-full -mt-4 mb-4">
                   <input
                     id="maintainOrder"
@@ -645,7 +653,6 @@ const ExplorePage = () => {
                     The stops are in the order they are currently operating
                   </label>
                 </div>
-                */}
                 {/* Vehicle Parameters */}
                 <div className="w-full flex flex-col gap-2 mt-2">
                   <h3 className="text-2xl text-center mb-2 text-gray-800 poppins-bold">
@@ -683,6 +690,11 @@ const ExplorePage = () => {
                     </div>
                   </div>
                 </div>
+                {error && (
+                  <div className="w-full bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm poppins-regular">
+                    {error}
+                  </div>
+                )}
                 <button
                   type="submit"
                   disabled={isLoading}
@@ -691,7 +703,7 @@ const ExplorePage = () => {
                   {isLoading ? (
                     <>
                       <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full"></div>
-                      <span>{loadingMessage}</span>
+                      <span>{loadingMessage}{elapsedSeconds > 5 ? ` (${elapsedSeconds}s)` : ''}</span>
                     </>
                   ) : (
                     'Optimize Route'

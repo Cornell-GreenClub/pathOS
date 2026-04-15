@@ -56,10 +56,7 @@ Weight accumulates as pickups are made (load-aware VRP). Diesel correction = 0.6
 | ORS | External API | Elevation only; optional (falls back to 0m) |
 
 ## Known Gaps (as of April 2026)
-- `maintainOrder` checkbox commented out in UI (backend fully supports it)
-- `currentFuel`, `time`, `vehicleNumber` in frontend formData but unused by backend
-- `matrixRunId` stored in metrics but not surfaced in UI
-- `data/{run_id}/` matrices saved per-run but no retrieval API
+- `currentFuel`, `time` in frontend formData but unused by backend
 - `archive/` and `ml/No_N2_production.py` are dead/disconnected code
 - Footer hidden on mobile; contact page has `[EMAIL_ADDRESS]` placeholder
 
@@ -74,3 +71,4 @@ Paths are now relative — no hardcoded user paths.
 
 ## Changes Log
 - **April 2026**: Wired ML pipeline into backend — `MatrixBuilder` now loads trained `.joblib` model instead of using hardcoded coefficients. Model metadata exposed in API response and frontend AnalyticsPanel. Fixed hardcoded `/Users/fli6/...` paths in `linear_regression.py`. Added `scikit-learn` and `joblib` to `requirements.txt`.
+- **April 2026**: AnalyticsPanel improvements — fixed misleading fuel bar (now shows original vs optimized side-by-side), added Impact Equivalents section (trees, car km, cost saved, L/100km), added "Open in Google Maps" button, improved export JSON (now includes full ordered stop list with coords/weights and Google Maps URL). Restored maintainOrder checkbox. Replaced alert() with inline error banner. Added elapsed time counter during loading.

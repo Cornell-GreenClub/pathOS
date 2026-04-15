@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   MapContainer,
   TileLayer,
@@ -49,6 +49,36 @@ const MapController = ({ startCoords, endCoords, route }: any) => {
   }, [map, route, startCoords, endCoords]);
 
   return null;
+};
+
+/**
+ * InfoTip renders a small ⓘ icon that reveals a tooltip on hover.
+ */
+const InfoTip = ({ text }: { text: string }) => {
+  const [visible, setVisible] = useState(false);
+  const ref = useRef<HTMLSpanElement>(null);
+
+  return (
+    <span className="relative inline-flex items-center ml-1" ref={ref}>
+      <button
+        type="button"
+        onMouseEnter={() => setVisible(true)}
+        onMouseLeave={() => setVisible(false)}
+        onFocus={() => setVisible(true)}
+        onBlur={() => setVisible(false)}
+        className="w-3.5 h-3.5 rounded-full bg-blue-200 text-blue-800 text-[9px] font-bold leading-none flex items-center justify-center hover:bg-blue-300 transition-colors"
+        aria-label="More info"
+      >
+        i
+      </button>
+      {visible && (
+        <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 w-52 bg-gray-900 text-white text-[11px] leading-snug rounded-lg px-3 py-2 z-50 shadow-lg pointer-events-none">
+          {text}
+          <span className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900" />
+        </span>
+      )}
+    </span>
+  );
 };
 
 /**
@@ -155,9 +185,34 @@ const ZoomControls = () => {
  * - formData: Object containing form submission data, such as stops
  */
 const AnalyticsPanel = ({ isOpen, onClose, metrics, formData }: any) => {
+  const [runData, setRunData] = useState<any>(null);
+  const [runLoading, setRunLoading] = useState(false);
+
+  const fetchRunData = async () => {
+    if (runData) { setRunData(null); return; }
+    setRunLoading(true);
+    try {
+      let backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://127.0.0.1:8000';
+      if (!backendUrl.startsWith('http')) backendUrl = `https://${backendUrl}`;
+      const res = await fetch(`${backendUrl}/run/${metrics.matrixRunId}`);
+      if (res.ok) setRunData(await res.json());
+    } finally {
+      setRunLoading(false);
+    }
+  };
+
   const hasData =
     metrics && (metrics.distanceKm != null || metrics.fuelLiters != null);
   const hasOriginal = metrics && metrics.originalDistanceKm != null;
+
+  const buildGoogleMapsUrl = (stops: any[]) => {
+    if (!stops || stops.length < 2) return null;
+    const origin = `${stops[0].coords.lat},${stops[0].coords.lng}`;
+    const dest = `${stops[stops.length - 1].coords.lat},${stops[stops.length - 1].coords.lng}`;
+    const mids = stops.slice(1, -1);
+    const waypointStr = mids.map((s: any) => `${s.coords.lat},${s.coords.lng}`).join('|');
+    return `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${dest}${waypointStr ? `&waypoints=${encodeURIComponent(waypointStr)}` : ''}&travelmode=driving`;
+  };
 
   const fuelSaved =
     hasOriginal && metrics.fuelLiters != null
@@ -181,6 +236,10 @@ const AnalyticsPanel = ({ isOpen, onClose, metrics, formData }: any) => {
           100
         ).toFixed(1)
       : null;
+  const timeDeltaMin =
+    hasOriginal && metrics.durationMin != null && metrics.originalDurationMin != null
+      ? Math.round((metrics.durationMin - metrics.originalDurationMin) * 10) / 10
+      : null;
 
   const formatDuration = (min: number | null) => {
     if (min == null) return '—';
@@ -190,12 +249,21 @@ const AnalyticsPanel = ({ isOpen, onClose, metrics, formData }: any) => {
 
   // Export route report as downloadable JSON
   const handleExport = () => {
+    const googleMapsUrl = buildGoogleMapsUrl(formData.stops);
     const reportData = {
       routeInfo: {
+        vehicleNumber: formData.vehicleNumber,
         startLocation: formData.stops[0]?.location,
         endLocation: formData.stops[formData.stops.length - 1]?.location,
         date: new Date().toLocaleDateString(),
+        googleMapsUrl,
       },
+      stops: formData.stops.map((stop: any, idx: number) => ({
+        stopNumber: idx + 1,
+        location: stop.location,
+        coords: stop.coords,
+        weightKg: stop.weightKg || 0,
+      })),
       original: {
         distanceKm: metrics?.originalDistanceKm,
         durationMin: metrics?.originalDurationMin,
@@ -221,7 +289,8 @@ const AnalyticsPanel = ({ isOpen, onClose, metrics, formData }: any) => {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `route-report-${new Date().toISOString().split('T')[0]}.json`;
+    const vehicle = formData.vehicleNumber ? `${formData.vehicleNumber}-` : '';
+    link.download = `route-report-${vehicle}${new Date().toISOString().split('T')[0]}.json`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -296,19 +365,30 @@ const AnalyticsPanel = ({ isOpen, onClose, metrics, formData }: any) => {
                     </p>
                   </div>
                 )}
-                {fuelSavedPct && (
+                {fuelSavedPct && metrics.originalFuelLiters > 0 && (
                   <div className="mt-3">
-                    <div className="flex justify-between text-xs text-green-700 mb-1">
-                      <span>Fuel reduction</span>
-                      <span>{fuelSavedPct}%</span>
+                    <div className="flex justify-between text-xs text-green-700 mb-2">
+                      <span>Fuel comparison</span>
+                      <span>{fuelSavedPct}% reduction</span>
                     </div>
-                    <div className="w-full bg-green-200 rounded-full h-2">
-                      <div
-                        className="bg-green-500 h-2 rounded-full transition-all duration-500"
-                        style={{
-                          width: `${Math.min(parseFloat(fuelSavedPct), 100)}%`,
-                        }}
-                      />
+                    <div className="space-y-1.5">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-gray-500 w-16 shrink-0">Original</span>
+                        <div className="flex-1 bg-gray-200 rounded-full h-2.5">
+                          <div className="bg-gray-400 h-2.5 rounded-full w-full" />
+                        </div>
+                        <span className="text-xs font-medium text-gray-600 w-12 text-right shrink-0">{metrics.originalFuelLiters} L</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-green-700 w-16 shrink-0">Optimized</span>
+                        <div className="flex-1 bg-green-100 rounded-full h-2.5">
+                          <div
+                            className="bg-green-500 h-2.5 rounded-full transition-all duration-500"
+                            style={{ width: `${(metrics.fuelLiters / metrics.originalFuelLiters) * 100}%` }}
+                          />
+                        </div>
+                        <span className="text-xs font-medium text-green-700 w-12 text-right shrink-0">{metrics.fuelLiters} L</span>
+                      </div>
                     </div>
                   </div>
                 )}
@@ -353,6 +433,16 @@ const AnalyticsPanel = ({ isOpen, onClose, metrics, formData }: any) => {
                   <p className="text-lg font-medium text-[#034626]">
                     {formatDuration(metrics.durationMin)}
                   </p>
+                  {timeDeltaMin != null && timeDeltaMin !== 0 && (
+                    <p className={`text-xs mt-0.5 font-medium ${timeDeltaMin < 0 ? 'text-green-600' : 'text-amber-600'}`}>
+                      {timeDeltaMin < 0
+                        ? `↓ ${formatDuration(Math.abs(timeDeltaMin))} faster`
+                        : `↑ ${formatDuration(timeDeltaMin)} slower`}
+                    </p>
+                  )}
+                  {timeDeltaMin === 0 && hasOriginal && (
+                    <p className="text-xs mt-0.5 text-gray-400">no change</p>
+                  )}
                 </div>
               </div>
             </div>
@@ -375,6 +465,14 @@ const AnalyticsPanel = ({ isOpen, onClose, metrics, formData }: any) => {
                     <p className="text-lg font-medium text-[#034626]">
                       {metrics.fuelLiters} L
                     </p>
+                    {fuelSaved != null && fuelSaved > 0 && (
+                      <p className="text-xs mt-0.5 text-green-600 font-medium">
+                        ↓ {fuelSaved} L less{fuelSavedPct ? ` (${fuelSavedPct}%)` : ''}
+                      </p>
+                    )}
+                    {fuelSaved === 0 && hasOriginal && (
+                      <p className="text-xs mt-0.5 text-gray-400">no change</p>
+                    )}
                   </div>
                 </div>
               </div>
@@ -400,6 +498,87 @@ const AnalyticsPanel = ({ isOpen, onClose, metrics, formData }: any) => {
                     </p>
                   </div>
                 </div>
+              </div>
+            )}
+
+            {/* Impact Equivalents */}
+            {(fuelSaved != null || co2Saved != null) && (
+              <div className="bg-blue-50 p-4 rounded-xl border border-blue-100">
+                <h3 className="text-sm font-semibold text-blue-800 mb-3">Impact Equivalents</h3>
+                <div className="space-y-2 text-sm">
+                  {co2Saved != null && co2Saved > 0 && (
+                    <>
+                      <div className="flex justify-between items-center">
+                        <span className="text-blue-700 text-xs flex items-center">
+                          Trees absorbing CO₂ for 1 year
+                          <InfoTip text={`${co2Saved} kg CO₂ saved ÷ 21 kg/tree/yr = ${(Math.round(co2Saved / 21 * 10) / 10).toFixed(1)} trees. Source: US Forest Service avg of 21 kg CO₂ absorbed per mature tree per year.`} />
+                        </span>
+                        <span className="font-semibold text-blue-900 text-sm">{(Math.round(co2Saved / 21 * 10) / 10).toFixed(1)}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-blue-700 text-xs flex items-center">
+                          Equivalent car km avoided
+                          <InfoTip text={`${co2Saved} kg CO₂ saved ÷ 0.12 kg CO₂/km = ${Math.round(co2Saved / 0.12)} km. Based on an average passenger car emitting 120 g CO₂/km (EU average).`} />
+                        </span>
+                        <span className="font-semibold text-blue-900 text-sm">{Math.round(co2Saved / 0.12)} km</span>
+                      </div>
+                    </>
+                  )}
+                  {fuelSaved != null && fuelSaved > 0 && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-blue-700 text-xs flex items-center">
+                        Est. fuel cost saved
+                        <InfoTip text={`${fuelSaved} L saved × $1.50/L = $${(Math.round(fuelSaved * 1.5 * 100) / 100).toFixed(2)}. Uses US average diesel pump price of ~$1.50/L.`} />
+                      </span>
+                      <span className="font-semibold text-blue-900 text-sm">${(Math.round(fuelSaved * 1.5 * 100) / 100).toFixed(2)}</span>
+                    </div>
+                  )}
+                  {metrics.fuelLiters != null && metrics.distanceKm != null && metrics.distanceKm > 0 && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-blue-700 text-xs flex items-center">
+                        Optimized fuel efficiency
+                        <InfoTip text={`${metrics.fuelLiters} L ÷ ${metrics.distanceKm} km × 100 = ${(metrics.fuelLiters / metrics.distanceKm * 100).toFixed(1)} L/100km. Standard metric: litres consumed per 100 km driven.`} />
+                      </span>
+                      <span className="font-semibold text-blue-900 text-sm">{(metrics.fuelLiters / metrics.distanceKm * 100).toFixed(1)} L/100km</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Open in Google Maps */}
+            {formData.stops?.length >= 2 && (
+              <button
+                onClick={() => {
+                  const url = buildGoogleMapsUrl(formData.stops);
+                  if (url) window.open(url, '_blank');
+                }}
+                className="w-full border border-[#034626] text-[#034626] py-2 px-4 rounded-lg hover:bg-green-50 transition-colors text-sm font-medium"
+              >
+                Open in Google Maps
+              </button>
+            )}
+
+            {/* Run details */}
+            {metrics.matrixRunId && (
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <div className="flex justify-between items-center">
+                  <h4 className="font-semibold text-sm">Run ID</h4>
+                  <button
+                    onClick={fetchRunData}
+                    className="text-xs text-[#034626] underline"
+                  >
+                    {runLoading ? 'Loading...' : runData ? 'Hide' : 'View details'}
+                  </button>
+                </div>
+                <p className="text-xs text-gray-500 font-mono mt-1 break-all">{metrics.matrixRunId}</p>
+                {runData && (
+                  <div className="mt-2 space-y-1 text-xs text-gray-600">
+                    <p>Stops: {runData.n_stops}</p>
+                    <p>Vehicle: {runData.vehicle_weight_kg} kg · {runData.fuel_type}</p>
+                    <p>Saved: {new Date(runData.timestamp).toLocaleString()}</p>
+                  </div>
+                )}
               </div>
             )}
 

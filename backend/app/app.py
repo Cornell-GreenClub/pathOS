@@ -14,11 +14,14 @@ Data Flow:
 
 from flask import Flask, request, jsonify
 from flask_cors import CORS
+import json
 import logging
+import re
 import requests
 import config
 import time
 from datetime import datetime
+from pathlib import Path
 from route_optimizer import RouteOptimizer
 from matrix_builder import MatrixBuilder, CO2_KG_PER_LITER
 
@@ -138,6 +141,19 @@ def format_route_url(stops, osrm_host=None):
 def health_check():
     """Lightweight endpoint to wake up the server."""
     return jsonify({"status": "ok"}), 200
+
+
+@app.route("/run/<run_id>", methods=["GET"])
+def get_run(run_id):
+    """Return metadata for a saved optimization run."""
+    if not re.match(r'^[\w\-]+$', run_id):
+        return jsonify({"error": "Invalid run ID"}), 400
+    data_root = Path(__file__).parent.parent.parent / 'data'
+    meta_path = data_root / run_id / 'metadata.json'
+    if not meta_path.exists():
+        return jsonify({"error": "Run not found"}), 404
+    with open(meta_path) as f:
+        return jsonify(json.load(f)), 200
 
 
 @app.route("/optimize_route", methods=["POST"])
