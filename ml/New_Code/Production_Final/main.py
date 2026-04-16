@@ -516,3 +516,4 @@ if __name__ == "__main__":
     for leg in legs:
         print(f"  {leg['from']} -> {leg['to']}: {leg['distance_km']:.1f} km, "
               f"{leg['weight_kg']:,.0f} kg, {leg['fuel_L']:.2f} L")
+        
