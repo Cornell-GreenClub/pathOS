@@ -1,17 +1,25 @@
 """
 Fuel Matrix Builder (v4 - Vehicle Class Coefficients)
 
-Creates an NxN fuel consumption matrix for a list of locations.
-Uses pre-computed vehicle-class-specific coefficients.
+Creates four NxN matrices for route optimization:
+- Fuel matrix (liters)
+- Distance matrix (km)
+- Elevation matrix (meters ascent)
+- Speed matrix (km/h)
 
 Usage:
-    from fuel_matrix_builder_v4 import FuelMatrixBuilder
+    from fuel_matrix_builder import FuelMatrixBuilder
     
     builder = FuelMatrixBuilder(
         api_keys=["key1", "key2"],
-        vehicle_class='semi_truck_with_trailer',
+        vehicle_class='school_bus_type_c',
     )
-    matrix = builder.build_matrix(locations)
+    builder.build_matrix(locations, output_path='./matrices/')
+    
+    fuel = builder.get_fuel_matrix()
+    dist = builder.get_distance_matrix()
+    elev = builder.get_elevation_matrix()
+    speed = builder.get_speed_matrix()
 """
 
 import os
@@ -20,7 +28,7 @@ import aiohttp
 import numpy as np
 import pandas as pd
 import time
-from typing import List, Optional, Union, Tuple, Dict, Any
+from typing import List, Optional, Union, Tuple, Dict
 import threading
 
 try:
@@ -164,7 +172,7 @@ VEHICLE_CLASSES = {
 # CONSTANTS
 # ============================================================
 
-MAX_CONCURRENT = 2
+MAX_CONCURRENT = 5
 REQUEST_DELAY = 1.5
 MAX_RETRIES = 5
 ORS_URL = "https://api.openrouteservice.org/v2/directions/driving-hgv/geojson"
@@ -181,7 +189,6 @@ class FuelMatrixBuilder:
         api_keys: Union[str, List[str]],
         vehicle_class: str = 'passenger_car',
         vehicle_weight_kg: Optional[float] = None,
-        include_return: bool = False,
         max_concurrent: int = MAX_CONCURRENT
     ):
         self.api_keys = [api_keys] if isinstance(api_keys, str) else api_keys
@@ -197,7 +204,6 @@ class FuelMatrixBuilder:
         self.coefficients = vc['coefficients']
         self.vehicle_weight_kg = vehicle_weight_kg or vc['default_weight_kg']
         
-        self.include_return = include_return
         self.max_concurrent = max_concurrent
         self.client = openrouteservice.Client(key=self.api_keys[0])
         
@@ -291,7 +297,7 @@ class FuelMatrixBuilder:
         return max(0, fuel)
     
     def build_matrix(self, locations: Union[List[str], List[List[float]]], 
-                     output_path: Optional[str] = None) -> List[List[float]]:
+                     output_path: Optional[str] = None) -> None:
         if isinstance(locations[0], str):
             print(f"Geocoding {len(locations)} locations...")
             coords = self.geocode_all(locations)
@@ -305,53 +311,38 @@ class FuelMatrixBuilder:
         
         route_results = asyncio.run(self._fetch_all_routes(coords))
         
-        fuel_matrix = np.zeros((n, n))
+        self.fuel_matrix = np.zeros((n, n))
         self.distance_matrix = np.zeros((n, n))
         self.elevation_matrix = np.zeros((n, n))
         self.speed_matrix = np.zeros((n, n))
         
         for (i, j), route in route_results.items():
             if route.get('success'):
-                fuel_matrix[i, j] = self.predict_fuel(
+                self.fuel_matrix[i, j] = self.predict_fuel(
                     route['distance_km'], route['elevation_gain_m'], route['avg_speed_kmh']
                 )
                 self.distance_matrix[i, j] = route['distance_km']
                 self.elevation_matrix[i, j] = route['elevation_gain_m']
                 self.speed_matrix[i, j] = route['avg_speed_kmh']
             else:
-                fuel_matrix[i, j] = np.nan
-        
-        if self.include_return:
-            return_col = fuel_matrix[:, 0].reshape(-1, 1)
-            fuel_matrix = np.hstack([fuel_matrix, return_col])
-            fuel_matrix = np.vstack([fuel_matrix, np.zeros((1, fuel_matrix.shape[1]))])
-            self.labels.append(f"Return to {self.labels[0]}")
+                self.fuel_matrix[i, j] = np.nan
+                self.distance_matrix[i, j] = np.nan
+                self.elevation_matrix[i, j] = np.nan
+                self.speed_matrix[i, j] = np.nan
         
         success_rate = sum(1 for r in route_results.values() if r.get('success')) / len(route_results)
         print(f"Done. {success_rate*100:.0f}% success.")
         
-        self.fuel_matrix = fuel_matrix.tolist()
+        # Convert to lists
+        self.fuel_matrix = self.fuel_matrix.tolist()
         self.distance_matrix = self.distance_matrix.tolist()
         self.elevation_matrix = self.elevation_matrix.tolist()
         self.speed_matrix = self.speed_matrix.tolist()
         
         if output_path:
             self.save_matrices(output_path)
-        
-        return self.fuel_matrix
     
     def save_matrices(self, output_path: str):
-        """
-        Save all matrices to CSV files.
-        
-        Creates:
-            {output_path}/fuel_matrix.csv
-            {output_path}/distance_matrix.csv
-            {output_path}/elevation_matrix.csv
-            {output_path}/speed_matrix.csv
-            {output_path}/labels.csv
-        """
-        import os
         os.makedirs(output_path, exist_ok=True)
         
         pd.DataFrame(self.fuel_matrix, index=self.labels, columns=self.labels).to_csv(
@@ -371,75 +362,16 @@ class FuelMatrixBuilder:
         return self.labels
     
     def get_fuel_matrix(self) -> List[List[float]]:
-        """Fuel consumption matrix in liters."""
         return self.fuel_matrix
     
     def get_distance_matrix(self) -> List[List[float]]:
-        """Distance matrix in km."""
         return self.distance_matrix
     
     def get_elevation_matrix(self) -> List[List[float]]:
-        """Elevation gain (ascent) matrix in meters."""
         return self.elevation_matrix
     
     def get_speed_matrix(self) -> List[List[float]]:
-        """Average speed matrix in km/h."""
         return self.speed_matrix
-    
-    def calculate_route_fuel(
-        self, 
-        route: List[int], 
-        stop_weights: Optional[Dict[int, float]] = None
-    ) -> Tuple[float, List[Dict]]:
-        """
-        Calculate total fuel for a route with dynamic weight accumulation.
-        
-        As the vehicle visits each stop, it picks up weight (e.g., recycling),
-        making subsequent legs more fuel-intensive.
-        
-        Args:
-            route: List of stop indices in order (e.g., [0, 3, 5, 2, 0])
-            stop_weights: Dict mapping stop index to pickup weight (kg).
-                          If None, uses fixed vehicle_weight_kg for all legs.
-        
-        Returns:
-            Tuple of (total_fuel_liters, leg_details)
-            leg_details is a list of dicts with per-leg breakdown
-        """
-        if not hasattr(self, 'distance_matrix') or self.distance_matrix is None:
-            raise ValueError("Must call build_matrix() first")
-        
-        total_fuel = 0
-        current_weight = self.vehicle_weight_kg
-        leg_details = []
-        
-        for i in range(len(route) - 1):
-            origin = route[i]
-            dest = route[i + 1]
-            
-            dist = self.distance_matrix[origin][dest]
-            elev = self.elevation_matrix[origin][dest]
-            speed = self.speed_matrix[origin][dest]
-            
-            # Predict fuel for this leg with current weight
-            fuel = self.predict_fuel(dist, elev, speed, weight_kg=current_weight)
-            total_fuel += fuel
-            
-            leg_details.append({
-                'from': origin,
-                'to': dest,
-                'distance_km': dist,
-                'elevation_m': elev,
-                'weight_kg': current_weight,
-                'fuel_L': fuel,
-            })
-            
-            # Add pickup weight at destination (if provided)
-            if stop_weights:
-                pickup = stop_weights.get(dest, 0)
-                current_weight += pickup
-        
-        return total_fuel, leg_details
 
 
 # ============================================================
@@ -466,54 +398,55 @@ def get_api_keys() -> List[str]:
 
 if __name__ == "__main__":
     API_KEYS = get_api_keys()
+
+    #need to pass in locations
     
     locations = [
-        "TST BOCES Tompkins, 555 Warren Rd, Ithaca, NY 14850",      # 0: Depot
-        "DeWitt Middle School, 560 Warren Rd, Ithaca, NY 14850",     # 1
-        "Northeast Elementary School, 425 Winthrop Dr, Ithaca, NY 14850",  # 2
-        "Cayuga Heights Elementary School, 110 E Upland Rd, Ithaca, NY 14850",  # 3
+        "TST BOCES Tompkins, 555 Warren Rd, Ithaca, NY 14850",
+        "DeWitt Middle School, 560 Warren Rd, Ithaca, NY 14850",
+        "Northeast Elementary School, 425 Winthrop Dr, Ithaca, NY 14850",
+        "Cayuga Heights Elementary School, 110 E Upland Rd, Ithaca, NY 14850",
+        "Belle Sherman Elementary School, 501 Mitchell St, Ithaca, NY 14850",
+        "Caroline After School Program, 2439 Slaterville Rd, Slaterville Springs, NY 14881",
+        "South Hill Elementary School, 520 Hudson St, Ithaca, NY 14850",
+        "Beverly J. Martin Elementary School, 302 W Buffalo St, Ithaca, NY 14850",
+        "Fall Creek Elementary School, 202 King St, Ithaca, NY 14850",
+        "Boynton Middle School, 1601 N Cayuga St, Ithaca, NY 14850",
+        "ICSD Technology, 602 Hancock St, Ithaca, NY 14850",
+        "737 Willow Ave, Ithaca, NY 14850",
+        "Enfield Elementary School, 20 Enfield Main Rd, Ithaca, NY 14850",
+        "Lehman Alternative Community School, 111 Chestnut St, Ithaca, NY 14850",
+        "Tompkins County Recycling, 122 Commercial Ave, Ithaca, NY 14850",
     ]
-    
-    # === STOP PICKUP WEIGHTS (kg) ===
-    # Weight picked up at each stop (e.g., recycling)
-    STOP_WEIGHTS = {
-        0: 0,        # Depot - no pickup
-        1: 514.31,   # DeWitt Middle School
-        2: 326.53,   # Northeast Elementary
-        3: 251.81,   # Cayuga Heights Elementary
-    }
+
+    #need to add output path
     
     # === SPECIFY OUTPUT PATH HERE ===
-    OUTPUT_PATH = None  # e.g., "/path/to/output/folder"
+    OUTPUT_PATH = "ml/New_Code/Production_Final/Matricies"  # e.g., "/path/to/output/folder"
     
     builder = FuelMatrixBuilder(
         api_keys=API_KEYS,
-        vehicle_class='school_bus_type_c',
-        # vehicle_weight_kg=15000,  # Uses default if not specified
+        vehicle_class='dump_truck',
     )
     
-    fuel_matrix = builder.build_matrix(locations, output_path=OUTPUT_PATH)
-    labels = builder.get_labels()
+    builder.build_matrix(locations, output_path=OUTPUT_PATH)
     
     print("\nFuel Matrix (L):")
-    print(pd.DataFrame(fuel_matrix, index=labels, columns=labels).round(3))
+    print(pd.DataFrame(builder.get_fuel_matrix(), 
+                       index=builder.get_labels(), 
+                       columns=builder.get_labels()).round(4))
     
-    # === DYNAMIC WEIGHT EXAMPLE ===
-    # Route: Depot -> Stop 1 -> Stop 2 -> Stop 3 -> Depot
-    route = [0, 1, 2, 3, 0]
+    print("\nDistance Matrix (km):")
+    print(pd.DataFrame(builder.get_distance_matrix(), 
+                       index=builder.get_labels(), 
+                       columns=builder.get_labels()).round(4))
     
-    # Without dynamic weights (fixed weight)
-    fuel_fixed, _ = builder.calculate_route_fuel(route)
+    print("\nElevation Matrix (m):")
+    print(pd.DataFrame(builder.get_elevation_matrix(), 
+                       index=builder.get_labels(), 
+                       columns=builder.get_labels()).round(4))
     
-    # With dynamic weights (accumulating)
-    fuel_dynamic, legs = builder.calculate_route_fuel(route, stop_weights=STOP_WEIGHTS)
-    
-    print(f"\n--- Route: {' -> '.join(str(s) for s in route)} ---")
-    print(f"Fixed weight:   {fuel_fixed:.2f} L")
-    print(f"Dynamic weight: {fuel_dynamic:.2f} L (+{(fuel_dynamic/fuel_fixed - 1)*100:.1f}%)")
-    
-    print("\nLeg breakdown:")
-    for leg in legs:
-        print(f"  {leg['from']} -> {leg['to']}: {leg['distance_km']:.1f} km, "
-              f"{leg['weight_kg']:,.0f} kg, {leg['fuel_L']:.2f} L")
-        
+    print("\nSpeed Matrix (km/h):")
+    print(pd.DataFrame(builder.get_speed_matrix(), 
+                       index=builder.get_labels(), 
+                       columns=builder.get_labels()).round(4))
