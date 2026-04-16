@@ -5,9 +5,6 @@ services:
     env: python
     buildCommand: "pip install -r backend/app/requirements.txt"
     startCommand: "cd backend/app && gunicorn -w 4 -b 0.0.0.0:$PORT app:app"
-    envVars:
-      - key: OSRM_HOST
-        value: http://100.30.34.94:5000
     plan: free
 
 

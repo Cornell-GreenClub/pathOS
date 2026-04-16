@@ -29,6 +29,8 @@ python3 app/app.py
 ```
 *Note: This spins up the local backend at `http://localhost:8000`. To stop the server when you are done, press `Ctrl+C` in your terminal.*
 
+> **IMPORTANT (.env Routing):** By default, if your root `.env` file contains `OSRM_WAKE_URL` and `OSRM_WAKE_SECRET`, your local backend will trigger the AWS Lambda and boot your actual AWS cloud server for testing. Unless this is intended for your specific testing, simply `# comment out` those two lines in your `.env` file
+
 ### 3. The Next.js Frontend (Local Dev Server)
 When you run `npm run dev`, your local Next.js frontend is configured inside `page.tsx` to target your local variables:
 * **Backend:** `http://localhost:8000/optimize_route`
@@ -43,9 +45,10 @@ In production, all three systems are decoupled and hosted on different cloud pro
 * **Backend:** Deployed to Render.com
 * **OSRM Server:** Deployed to an AWS EC2 instance
 
-### 1. The OSRM Server (AWS EC2)
+### 1. The OSRM Server (AWS EC2 - Auto Hibernating)
 Due to memory requirements for processing the full New York State roadmap, this is hosted on an **AWS EC2 `t3.large` instance**. 
-* **URL/IP Mapping:** This instance's Elastic IP address is mapped to `http://100.30.34.94:5000`.
+* **Dynamic IP Setup:** To slash costs, this server is configured to safely Auto-Hibernate when inactive, dropping its IP address entirely to negate AWS IP fees. When a user requests a route, the pathOS Render backend dynamically hits an AWS Lambda securely (`OSRM_WAKE_URL`), which intelligently boots the server and returns the fresh IP address on the fly. 
+*(See `osrm_aws_deployment_guide.md` for the extensive AWS architectural setup).*
 
 ### 2. The Flask Backend (Render)
 The pathOS Python logic is pushed to a **free-tier instance on Render**. 

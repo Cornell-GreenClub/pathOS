@@ -28,7 +28,8 @@ def load_json(filepath):
 
 
 def main():
-    data_dir = os.path.join(os.path.dirname(__file__), '..', 'testing', 'testing_suite')
+    data_dir = os.path.join(os.path.dirname(__file__), '..', 'testing', 'sample_route_matrices')
+    suite_dir = os.path.join(os.path.dirname(__file__), '..', 'testing', 'testing_suite')
 
     dist_names, distance_matrix  = load_csv_matrix(os.path.join(data_dir, 'distance_matrix.csv'))
     _,          elevation_matrix = load_csv_matrix(os.path.join(data_dir, 'elevation_matrix.csv'))
@@ -36,18 +37,23 @@ def main():
     _,          fuel_matrix      = load_csv_matrix(os.path.join(data_dir, 'fuel_matrix.csv'))
 
     weights_data = load_json(os.path.join(data_dir, 'stop_weights.json'))
-    betas        = load_json(os.path.join(data_dir, 'beta_coefficients.json'))
+    betas        = load_json(os.path.join(suite_dir, 'beta_coefficients.json'))
 
     weights = {int(k): v for k, v in weights_data["by_index"].items()}
     base_vehicle_kg = weights_data["base_vehicle_kg"]
     location_names = dist_names
     n = len(location_names)
 
-    initial_route = list(range(n)) + [0]
-    runs = 1000
+    initial_route = list(range(n))
+    runs = 1
 
-    sa_vs_tsp_pcts = []
-    sa_vs_init_pcts = []
+    initial_distance = sum(distance_matrix[initial_route[i]][initial_route[i + 1]]
+                           for i in range(len(initial_route) - 1))
+
+    final_costs = []
+    reduction_pcts = []
+    best_route = None
+    best_cost = float('inf')
 
     print(f"Running optimizer {runs} times...\n")
 
@@ -64,45 +70,38 @@ def main():
             location_names=location_names,
         )
 
-        tsp_route = optimizer.last_tsp_route
-
         initial_cost = optimizer._route_cost(initial_route, distance_matrix, elevation_matrix,
                                               speed_matrix, weights, betas, base_vehicle_kg)
-        tsp_cost = optimizer._route_cost(tsp_route, distance_matrix, elevation_matrix,
-                                          speed_matrix, weights, betas, base_vehicle_kg)
         final_cost = optimizer._route_cost(final_route, distance_matrix, elevation_matrix,
                                             speed_matrix, weights, betas, base_vehicle_kg)
 
-        sa_vs_tsp = (tsp_cost - final_cost) / tsp_cost * 100
-        sa_vs_init = (initial_cost - final_cost) / initial_cost * 100
+        reduction = (initial_cost - final_cost) / initial_cost * 100
 
-        sa_vs_tsp_pcts.append(sa_vs_tsp)
-        sa_vs_init_pcts.append(sa_vs_init)
+        final_costs.append(final_cost)
+        reduction_pcts.append(reduction)
 
-        print(f"  Run {i:3d}: SA vs TSP = {sa_vs_tsp:+.2f}%  |  SA vs Initial = {sa_vs_init:+.2f}%")
+        if final_cost < best_cost:
+            best_cost = final_cost
+            best_route = final_route
 
-    avg_vs_tsp = sum(sa_vs_tsp_pcts) / runs
-    avg_vs_init = sum(sa_vs_init_pcts) / runs
-    best_vs_tsp = max(sa_vs_tsp_pcts)
-    worst_vs_tsp = min(sa_vs_tsp_pcts)
+        print(f"  Run {i:3d}: cost = {final_cost:.4f}  |  reduction vs initial = {reduction:+.2f}%")
 
-    expected = load_json(os.path.join(data_dir, 'expected_results.json'))
-    exp_init_cost = expected["initial_route"]["cost"]
-    exp_tsp_cost = expected["tsp_route"]["cost"]
-    exp_wa_cost = expected["weight_aware_route"]["cost"]
-    best_possible_vs_tsp = (exp_tsp_cost - exp_wa_cost) / exp_tsp_cost * 100
-    best_possible_vs_init = (exp_init_cost - exp_wa_cost) / exp_init_cost * 100
+    avg_cost = sum(final_costs) / runs
+    avg_reduction = sum(reduction_pcts) / runs
+    best_reduction = max(reduction_pcts)
+
+    best_distance = sum(distance_matrix[best_route[i]][best_route[i + 1]]
+                        for i in range(len(best_route) - 1))
+    distance_saved = initial_distance - best_distance
 
     print("\n" + "=" * 60)
     print(f"RESULTS OVER {runs} RUNS")
     print("=" * 60)
-    print(f"  Avg SA vs TSP:     {avg_vs_tsp:+.2f}%")
-    print(f"  Avg SA vs Initial: {avg_vs_init:+.2f}%")
-    print(f"  Best SA vs TSP:    {best_vs_tsp:+.2f}%")
-    print(f"  Worst SA vs TSP:   {worst_vs_tsp:+.2f}%")
-    print(f"")
-    print(f"  Best possible SA vs TSP:     {best_possible_vs_tsp:+.2f}%")
-    print(f"  Best possible SA vs Initial: {best_possible_vs_init:+.2f}%")
+    print(f"  Avg cost:           {avg_cost:.4f}")
+    print(f"  Avg reduction:      {avg_reduction:+.2f}%")
+    print(f"  Best cost:          {best_cost:.4f}")
+    print(f"  Best reduction:     {best_reduction:+.2f}%")
+    print(f"  Distance saved:     {distance_saved:.2f} km  ({initial_distance:.2f} -> {best_distance:.2f})")
     print("=" * 60)
 
 if __name__ == "__main__":

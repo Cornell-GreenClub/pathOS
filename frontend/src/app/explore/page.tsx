@@ -16,82 +16,102 @@ const MapView = dynamic(() => import('./MapView'), {
 });
 
 // Add preset route data
+interface RouteMetrics {
+  distanceKm:           number | null;
+  durationMin:          number | null;
+  fuelLiters:           number | null;
+  co2Kg:                number | null;
+  originalDistanceKm:   number | null;
+  originalDurationMin:  number | null;
+  originalFuelLiters:   number | null;
+  originalCo2Kg:        number | null;
+  matrixRunId:          string | null;
+}
+
 const presetRoute = {
   stops: [
     {
       location: 'TST BOCES, 555 Warren Road, Northeast Ithaca, NY 14850',
       coords: { lat: 42.476169, lng: -76.465092 },
+      weightKg: 0,
     },
     {
       location: 'Dewitt Middle School, 560 Warren Road, Ithaca, NY 14850',
       coords: { lat: 42.475434, lng: -76.468026 },
+      weightKg: 514.31,
     },
     {
-      location:
-        'Northeast Elementary School, 425 Winthrop Dr, Ithaca, NY 14850',
+      location: 'Northeast Elementary School, 425 Winthrop Dr, Ithaca, NY 14850',
       coords: { lat: 42.472932, lng: -76.468742 },
+      weightKg: 326.53,
     },
     {
-      location:
-        'Cayuga Heights Elementary School, 110 E Upland Rd, Ithaca, NY 14850',
+      location: 'Cayuga Heights Elementary School, 110 E Upland Rd, Ithaca, NY 14850',
       coords: { lat: 42.465637, lng: -76.488499 },
+      weightKg: 251.81,
     },
     {
-      location:
-        'Belle Sherman Elementary School, Valley Road, Ithaca, NY 14853',
+      location: 'Belle Sherman Elementary School, Valley Road, Ithaca, NY 14853',
       coords: { lat: 42.435757, lng: -76.481317 },
+      weightKg: 240.97,
     },
     {
-      location:
-        'Caroline Elementary School, Slaterville Road, Besemer, NY 14881',
+      location: 'Caroline Elementary School, Slaterville Road, Besemer, NY 14881',
       coords: { lat: 42.392593, lng: -76.3715585 },
+      weightKg: 251.11,
     },
     {
-      location:
-        'South Hill Elementary School, 520 Hudson Street, Ithaca, NY 14850',
+      location: 'South Hill Elementary School, 520 Hudson Street, Ithaca, NY 14850',
       coords: { lat: 42.4338533, lng: -76.4931807 },
+      weightKg: 357.22,
     },
     {
-      location:
-        'Beverly J. Martin Elementary School, 302 West Buffalo Street, Ithaca, NY',
+      location: 'Beverly J. Martin Elementary School, 302 West Buffalo Street, Ithaca, NY',
       coords: { lat: 42.4422, lng: -76.4976 },
+      weightKg: 242.5,
     },
     {
       location: 'Fall Creek School, Linn Street, Ithaca, NY 14850',
       coords: { lat: 42.4415514, lng: -76.5021644 },
+      weightKg: 273.33,
     },
     {
-      location:
-        'Boynton Middle School, 1601 North Cayuga Street, Ithaca, NY 14850',
+      location: 'Boynton Middle School, 1601 North Cayuga Street, Ithaca, NY 14850',
       coords: { lat: 42.4606674, lng: -76.500035 },
+      weightKg: 484.31,
     },
     {
       location: '602 Hancock Street, Ithaca, NY 14850',
       coords: { lat: 42.4460873, lng: -76.5065422 },
+      weightKg: 0,
     },
     {
       location: '737 Willow Ave, Ithaca, NY 14850',
       coords: { lat: 42.453183, lng: -76.5053133 },
+      weightKg: 0,
     },
     {
       location: 'Enfield School, 20 Enfield Main Road, Ithaca, NY 14850',
       coords: { lat: 42.449517, lng: -76.6316132 },
+      weightKg: 271.11,
     },
     {
-      location:
-        'Lehmann Alternative Community School, 111 Chestnut Street, Ithaca, NY',
+      location: 'Lehmann Alternative Community School, 111 Chestnut Street, Ithaca, NY',
       coords: { lat: 42.440077, lng: -76.5177744 },
+      weightKg: 81.11,
     },
     {
-      location:
-        'Recycling and Solid Waste Center, 160 Commercial Avenue, Ithaca, NY',
+      location: 'Recycling and Solid Waste Center, 160 Commercial Avenue, Ithaca, NY',
       coords: { lat: 42.4242689, lng: -76.5159428 },
+      weightKg: 0,
     },
   ],
-  maintainOrder: false,
-  currentFuel: '40.0',
-  time: '80.0',
-  vehicleNumber: 'BUS-001',
+  maintainOrder:    false,
+  currentFuel:      '40.0',
+  time:             '80.0',
+  vehicleNumber:    'BUS-001',
+  vehicleWeightKg:  9000,
+  fuelType:         'diesel',
 };
 
 /**
@@ -127,6 +147,7 @@ const ExplorePage = () => {
   interface Stop {
     location: string;
     coords: Coords | null;
+    weightKg: number;
   }
 
   /*=======================================================
@@ -140,19 +161,38 @@ const ExplorePage = () => {
   // This state is the source of truth for the optimization request.
   const [formData, setFormData] = useState({
     stops: [
-      { location: '', coords: null as Coords | null }, // Start
-      { location: '', coords: null as Coords | null }, // End
+      { location: '', coords: null as Coords | null, weightKg: 0 }, // Start
+      { location: '', coords: null as Coords | null, weightKg: 0 }, // End
     ],
-    maintainOrder: false,
-    currentFuel: '40.0',
-    time: '80.0',
-    vehicleNumber: 'BUS-001',
+    maintainOrder:   false,
+    currentFuel:     '40.0',
+    time:            '80.0',
+    vehicleNumber:   'BUS-001',
+    vehicleWeightKg: 9000,
+    fuelType:        'diesel',
   });
 
   //debug whenever formData.stops updates
   useEffect(() => {
     console.log('Updated stops:', formData.stops);
   }, [formData.stops]); // Runs whenever `stops` changes
+
+  // Pre-fire to wake up the Render backend (but not OSRM)
+  useEffect(() => {
+    const wakeBackendOnly = async () => {
+      try {
+        let backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://127.0.0.1:8000';
+        if (!backendUrl.startsWith('http')) {
+          backendUrl = `https://${backendUrl}`;
+        }
+        // Fire and forget
+        fetch(`${backendUrl}/health`).catch(err => console.log('Backend prefire ping failed', err));
+      } catch (err) {
+        console.error('Failed to initiate backend prefire:', err);
+      }
+    };
+    wakeBackendOnly();
+  }, []);
 
 
 
@@ -165,6 +205,11 @@ const ExplorePage = () => {
   );
   const [isLoading, setIsLoading] = useState(false); // Loading state for the optimization request
   const [loadingMessage, setLoadingMessage] = useState('Optimizing...');
+  const [metrics, setMetrics] = useState<RouteMetrics>({
+    distanceKm: null, durationMin: null, fuelLiters: null, co2Kg: null,
+    originalDistanceKm: null, originalDurationMin: null, originalFuelLiters: null, originalCo2Kg: null,
+    matrixRunId: null,
+  });
 
   // Add these computed values
   const startCoords = formData.stops[0]?.coords || null;
@@ -185,9 +230,17 @@ const ExplorePage = () => {
   const handleStopSelect = (place: Place, index: number) => {
     const newStops = [...formData.stops];
     newStops[index] = {
+      ...newStops[index], // preserve weightKg
       location: place.formatted_address,
       coords: place.geometry.location,
     };
+    setFormData((prev) => ({ ...prev, stops: newStops }));
+  };
+
+  // handle a change to a stop's pickup weight
+  const handleWeightChange = (index: number, value: string) => {
+    const newStops = [...formData.stops];
+    newStops[index] = { ...newStops[index], weightKg: parseFloat(value) || 0 };
     setFormData((prev) => ({ ...prev, stops: newStops }));
   };
 
@@ -197,7 +250,7 @@ const ExplorePage = () => {
       ...prev,
       stops: [
         ...prev.stops.slice(0, -1),
-        { location: '', coords: null },
+        { location: '', coords: null, weightKg: 0 },
         prev.stops[prev.stops.length - 1],
       ],
     }));
@@ -221,38 +274,6 @@ const ExplorePage = () => {
     }));
   };
 
-  // look at later
-  interface Stop {
-    location: string;
-    coords: Coords | null;
-  }
-
-  // given a list of stops, make an API call to osrm that returns route data that is then formatted
-  const getMultiStopRoute = async (stops: Stop[]) => {
-    try {
-      const coordinates = stops
-        .map((stop) =>
-          stop.coords ? `${stop.coords.lng},${stop.coords.lat}` : ''
-        )
-        .join(';');
-
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_OSRM_URL || 'http://127.0.0.1:5000'}/route/v1/driving/${coordinates}?overview=full&geometries=geojson`
-      );
-      const data = await response.json();
-      if (data.routes && data.routes.length > 0) {
-        return data.routes[0].geometry.coordinates.map((coord: any) => [
-          coord[1],
-          coord[0],
-        ]);
-      }
-      return null;
-    } catch (error) {
-      console.error('Error getting route:', error);
-      return null;
-    }
-  };
-
   // Reusable route generation logic, calling the backend
   // optimizeRoute:
   // 1. Sets loading state.
@@ -269,16 +290,43 @@ const ExplorePage = () => {
     }, 15000); // 15 seconds
 
     try {
-      let backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000';
+      let backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://127.0.0.1:8000';
       if (!backendUrl.startsWith('http')) {
         backendUrl = `https://${backendUrl}`;
       }
       
-      const response = await fetch(`${backendUrl}/optimize_route`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
-      });
+      let response;
+      const maxRetries = 2; // Try up to 3 times to bypass 100s Render timeout
+
+      for (let attempt = 0; attempt <= maxRetries; attempt++) {
+        try {
+          response = await fetch(`${backendUrl}/optimize_route`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(formData),
+          });
+
+          // Break loop on explicit returns (success or deliberate error)
+          if (response.ok || response.status === 400 || response.status === 500) {
+            break;
+          }
+        } catch (fetchErr) {
+          if (attempt === maxRetries) throw fetchErr;
+          console.warn(`Fetch timed out or dropped, retrying in background... (${attempt + 1}/${maxRetries})`);
+        }
+
+        if (attempt < maxRetries) {
+          // Prevent the 15-second 'Waking up server...' timer from incorrectly overwriting this message
+          clearTimeout(timeoutId);
+          setLoadingMessage('Server was cold, retrying...');
+          // Wait 6 seconds before trying again
+          await new Promise((resume) => setTimeout(resume, 6000));
+        }
+      }
+
+      if (!response) {
+        throw new Error('All fetch attempts failed.');
+      }
 
       const data = await response.json();
 
@@ -293,12 +341,26 @@ const ExplorePage = () => {
         stops: data.optimizedStops,
       }));
 
+      // Store physics metrics from backend
+      setMetrics({
+        distanceKm:          data.distanceKm          ?? null,
+        durationMin:         data.durationMin         ?? null,
+        fuelLiters:          data.fuelLiters          ?? null,
+        co2Kg:               data.co2Kg               ?? null,
+        originalDistanceKm:  data.originalDistanceKm  ?? null,
+        originalDurationMin: data.originalDurationMin ?? null,
+        originalFuelLiters:  data.originalFuelLiters  ?? null,
+        originalCo2Kg:       data.originalCo2Kg       ?? null,
+        matrixRunId:         data.matrixRunId         ?? null,
+      });
+
       // Update map route
       setRoute(data.routeGeometry);
 
       setIsMapView(true);
     } catch (err) {
       console.error('Error calling backend:', err);
+      alert('The server failed to answer or wake up in time. Please click Optimize Route again.');
     } finally {
       clearTimeout(timeoutId);
       setIsLoading(false);
@@ -416,7 +478,7 @@ const ExplorePage = () => {
               </h1>
               <p className="text-gray-600 text-sm italic -mt-6 mb-8 poppins-regular">
                 {/* *We currently only support routes within the state of New York */}
-                *Backend is currently deactivated to reduce costs
+                {/* *Backend is currently deactivated to reduce costs */}
               </p>
               <form
                 onSubmit={handleSubmit}
@@ -519,12 +581,25 @@ const ExplorePage = () => {
                           hasValidCoords={!!stop.coords}
                         />
                       </div>
+                      {/* Pickup weight input */}
+                      <div className="flex items-center gap-1 flex-shrink-0">
+                        <input
+                          type="number"
+                          value={stop.weightKg}
+                          onChange={(e) => handleWeightChange(index, e.target.value)}
+                          min={0}
+                          step={0.01}
+                          className="w-20 px-2 py-[13px] border border-gray-300 rounded-md text-center text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#034626]"
+                          aria-label={`Pickup weight at stop ${index + 1} in kg`}
+                        />
+                        <span className="text-xs text-gray-400">kg</span>
+                      </div>
                       {/* Remove button for intermediate stops */}
                       {index !== 0 && index !== formData.stops.length - 1 && (
                         <button
                           type="button"
                           onClick={() => removeStop(index)}
-                          className="ml-2 text-gray-400 hover:text-red-500 text-2xl font-bold focus:outline-none min-w-[32px] min-h-[32px] flex items-center justify-center"
+                          className="ml-1 text-gray-400 hover:text-red-500 text-2xl font-bold focus:outline-none min-w-[32px] min-h-[32px] flex items-center justify-center"
                           aria-label="Remove stop"
                         >
                           ×
@@ -567,55 +642,43 @@ const ExplorePage = () => {
                   </label>
                 </div>
                 */}
-                {/* Vehicle Inputs Hidden
-                <div className="w-full flex flex-col gap-2 mt-10">
-                  <h3 className="text-4xl text-center mb-2 text-gray-800 poppins-bold">
-                    Tell Us About Your{' '}
-                    <span className="pathos-green">Vehicle</span>
+                {/* Vehicle Parameters */}
+                <div className="w-full flex flex-col gap-2 mt-2">
+                  <h3 className="text-2xl text-center mb-2 text-gray-800 poppins-bold">
+                    Vehicle <span className="pathos-green">Parameters</span>
                   </h3>
-                  <div className="grid grid-cols-3 gap-4 w-full mt-2">
+                  <div className="grid grid-cols-2 gap-4 w-full mt-1">
                     <div className="flex flex-col">
-                      <label className="block text-[18px] font-normal text-gray-800 mb-1">
-                        Current Fuel Per Trip
+                      <label className="block text-[16px] font-normal text-gray-800 mb-1">
+                        Vehicle Weight (kg)
                       </label>
                       <input
-                        type="text"
-                        name="currentFuel"
-                        value={formData.currentFuel}
+                        type="number"
+                        name="vehicleWeightKg"
+                        value={formData.vehicleWeightKg}
                         onChange={handleInputChange}
-                        className="w-full px-4 py-2 border border-gray-400 rounded-md focus:outline-none focus:ring-2 focus:ring-[#034626] text-gray-700 placeholder-gray-600 text-[18px] poppins-regular"
-                        placeholder="gal"
+                        min={500}
+                        max={50000}
+                        className="w-full px-4 py-2 border border-gray-400 rounded-md focus:outline-none focus:ring-2 focus:ring-[#034626] text-gray-700 placeholder-gray-600 text-[16px] poppins-regular"
+                        placeholder="e.g. 9000"
                       />
                     </div>
                     <div className="flex flex-col">
-                      <label className="block text-[18px] font-normal text-gray-800 mb-1">
-                        Trip Duration
+                      <label className="block text-[16px] font-normal text-gray-800 mb-1">
+                        Fuel Type
                       </label>
-                      <input
-                        type="text"
-                        name="time"
-                        value={formData.time}
+                      <select
+                        name="fuelType"
+                        value={formData.fuelType}
                         onChange={handleInputChange}
-                        className="w-full px-4 py-2 border border-gray-400 rounded-md focus:outline-none focus:ring-2 focus:ring-[#034626] text-gray-700 placeholder-gray-600 text-[18px] poppins-regular"
-                        placeholder="hh:mm"
-                      />
-                    </div>
-                    <div className="flex flex-col">
-                      <label className="block text-[18px] font-normal text-gray-800 mb-1">
-                        Vehicle Numbe
-                      </label>
-                      <input
-                        type="text"
-                        name="vehicleNumber"
-                        value={formData.vehicleNumber}
-                        onChange={handleInputChange}
-                        className="w-full px-4 py-2 border border-gray-400 rounded-md focus:outline-none focus:ring-2 focus:ring-[#034626] text-gray-700 placeholder-gray-600 text-[18px] poppins-regular"
-                        placeholder=""
-                      />
+                        className="w-full px-4 py-2 border border-gray-400 rounded-md focus:outline-none focus:ring-2 focus:ring-[#034626] text-gray-700 text-[16px] poppins-regular bg-white"
+                      >
+                        <option value="diesel">Diesel</option>
+                        <option value="gasoline">Gasoline</option>
+                      </select>
                     </div>
                   </div>
                 </div>
-                */}
                 <button
                   type="submit"
                   disabled={isLoading}
@@ -639,6 +702,7 @@ const ExplorePage = () => {
               startCoords={startCoords}
               endCoords={endCoords}
               onBack={() => setIsMapView(false)}
+              metrics={metrics}
             />
           )}
         </div>

@@ -36,25 +36,8 @@
   "total_pickup_kg": 3294.31,
   "base_vehicle_kg": 15000,
   "max_loaded_kg": 18294.31,
-  "pickup_stop_indices": [
-    1,
-    2,
-    3,
-    4,
-    5,
-    6,
-    7,
-    8,
-    9,
-    12,
-    13
-  ],
-  "non_pickup_stop_indices": [
-    0,
-    10,
-    11,
-    14
-  ],
+  "pickup_stop_indices": [1, 2, 3, 4, 5, 6, 7, 8, 9, 12, 13],
+  "non_pickup_stop_indices": [0, 10, 11, 14],
   "num_pickup_stops": 11,
   "heaviest_stop_index": 1
 }
