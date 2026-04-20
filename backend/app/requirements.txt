@@ -7,5 +7,3 @@ requests
 locust
 python-dotenv
 openrouteservice
-scikit-learn
-joblib
