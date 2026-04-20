@@ -839,7 +839,7 @@ const MapView = ({
       {/* Top navigation bar */}
       <div
         className="absolute top-0 p-4 z-[1000] flex justify-between items-start text-black transition-all duration-300 ease-in-out"
-        style={{ left: 0, right: isAnalyticsPanelOpen ? '384px' : '0px' }}
+        style={{ left: 0, right: isAnalyticsPanelOpen ? '384px' : isStopsPanelOpen ? '320px' : '0px' }}
       >
         <div className="flex gap-2">
           <button
