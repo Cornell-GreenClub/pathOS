@@ -4,7 +4,7 @@ services:
     name: pathos-backend
     env: python
     buildCommand: "pip install -r backend/app/requirements.txt"
-    startCommand: "cd backend/app && gunicorn -w 4 -b 0.0.0.0:$PORT app:app"
+    startCommand: "cd backend/app && gunicorn -w 4 --preload -b 0.0.0.0:$PORT app:app"
     plan: free
 
 

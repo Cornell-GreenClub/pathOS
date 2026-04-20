@@ -635,29 +635,6 @@ const AnalyticsPanel = ({ isOpen, onClose, metrics, formData }: any) => {
               </button>
             )}
 
-            {/* Run details */}
-            {metrics.matrixRunId && (
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <div className="flex justify-between items-center">
-                  <h4 className="font-semibold text-sm">Run ID</h4>
-                  <button
-                    onClick={fetchRunData}
-                    className="text-xs text-[#034626] underline"
-                  >
-                    {runLoading ? 'Loading...' : runData ? 'Hide' : 'View details'}
-                  </button>
-                </div>
-                <p className="text-xs text-gray-500 font-mono mt-1 break-all">{metrics.matrixRunId}</p>
-                {runData && (
-                  <div className="mt-2 space-y-1 text-xs text-gray-600">
-                    <p>Stops: {runData.n_stops}</p>
-                    <p>Vehicle: {runData.vehicle_weight_kg} kg · {runData.fuel_type}</p>
-                    <p>Saved: {new Date(runData.timestamp).toLocaleString()}</p>
-                  </div>
-                )}
-              </div>
-            )}
-
             {/* Export */}
             <div className="relative">
               <button
