@@ -187,6 +187,7 @@ const ZoomControls = () => {
 const AnalyticsPanel = ({ isOpen, onClose, metrics, formData }: any) => {
   const [runData, setRunData] = useState<any>(null);
   const [runLoading, setRunLoading] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
 
   const fetchRunData = async () => {
     if (runData) { setRunData(null); return; }
@@ -295,6 +296,81 @@ const AnalyticsPanel = ({ isOpen, onClose, metrics, formData }: any) => {
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
+  };
+
+  const handleExportCsv = () => {
+    const vehicle = formData.vehicleNumber ? `${formData.vehicleNumber}-` : '';
+    const date = new Date().toISOString().split('T')[0];
+    const rows = [
+      ['Stop #', 'Label', 'Location', 'Lat', 'Lng', 'Weight (kg)'],
+      ...formData.stops.map((s: any, i: number) => {
+        const total = formData.stops.length;
+        const label = i === 0 ? 'Start' : i === total - 1 ? 'End' : `Stop ${i}`;
+        return [i + 1, label, `"${s.location}"`, s.coords?.lat ?? '', s.coords?.lng ?? '', s.weightKg || 0];
+      }),
+    ];
+    if (metrics) {
+      rows.push([]);
+      rows.push(['Metric', 'Original', 'Optimized', 'Saved']);
+      rows.push(['Distance (km)', metrics.originalDistanceKm ?? '—', metrics.distanceKm ?? '—', distanceSaved ?? '—']);
+      rows.push(['Duration (min)', metrics.originalDurationMin ?? '—', metrics.durationMin ?? '—', '']);
+      rows.push(['Fuel (L)', metrics.originalFuelLiters ?? '—', metrics.fuelLiters ?? '—', fuelSaved ?? '—']);
+      rows.push(['CO2 (kg)', metrics.originalCo2Kg ?? '—', metrics.co2Kg ?? '—', co2Saved ?? '—']);
+    }
+    const csv = rows.map((r) => r.join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `route-report-${vehicle}${date}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleExportPdf = () => {
+    const vehicle = formData.vehicleNumber || 'Route';
+    const date = new Date().toLocaleDateString();
+    const googleMapsUrl = buildGoogleMapsUrl(formData.stops);
+    const stopsHtml = formData.stops.map((s: any, i: number) => {
+      const total = formData.stops.length;
+      const label = i === 0 ? 'Start' : i === total - 1 ? 'End' : `Stop ${i}`;
+      const weight = s.weightKg ? `<span style="color:#034626;font-size:11px;"> · ${s.weightKg} kg pickup</span>` : '';
+      return `<tr><td style="padding:6px 8px;color:#888;font-size:12px;">${label}</td><td style="padding:6px 8px;font-size:13px;">${s.location}${weight}</td></tr>`;
+    }).join('');
+    const metricsHtml = metrics ? `
+      <table style="width:100%;border-collapse:collapse;margin-top:16px;">
+        <thead><tr style="background:#f3f4f6;">
+          <th style="padding:8px;text-align:left;font-size:12px;color:#555;">Metric</th>
+          <th style="padding:8px;text-align:right;font-size:12px;color:#555;">Original</th>
+          <th style="padding:8px;text-align:right;font-size:12px;color:#034626;">Optimized</th>
+          <th style="padding:8px;text-align:right;font-size:12px;color:#16a34a;">Saved</th>
+        </tr></thead>
+        <tbody>
+          <tr><td style="padding:6px 8px;font-size:13px;">Distance</td><td style="text-align:right;padding:6px 8px;">${metrics.originalDistanceKm ?? '—'} km</td><td style="text-align:right;padding:6px 8px;color:#034626;">${metrics.distanceKm ?? '—'} km</td><td style="text-align:right;padding:6px 8px;color:#16a34a;">${distanceSaved != null ? `${distanceSaved} km` : '—'}</td></tr>
+          <tr style="background:#f9fafb;"><td style="padding:6px 8px;font-size:13px;">Duration</td><td style="text-align:right;padding:6px 8px;">${metrics.originalDurationMin != null ? formatDuration(metrics.originalDurationMin) : '—'}</td><td style="text-align:right;padding:6px 8px;color:#034626;">${metrics.durationMin != null ? formatDuration(metrics.durationMin) : '—'}</td><td style="text-align:right;padding:6px 8px;color:#16a34a;">—</td></tr>
+          <tr><td style="padding:6px 8px;font-size:13px;">Fuel</td><td style="text-align:right;padding:6px 8px;">${metrics.originalFuelLiters ?? '—'} L</td><td style="text-align:right;padding:6px 8px;color:#034626;">${metrics.fuelLiters ?? '—'} L</td><td style="text-align:right;padding:6px 8px;color:#16a34a;">${fuelSaved != null ? `${fuelSaved} L` : '—'}</td></tr>
+          <tr style="background:#f9fafb;"><td style="padding:6px 8px;font-size:13px;">CO₂</td><td style="text-align:right;padding:6px 8px;">${metrics.originalCo2Kg ?? '—'} kg</td><td style="text-align:right;padding:6px 8px;color:#034626;">${metrics.co2Kg ?? '—'} kg</td><td style="text-align:right;padding:6px 8px;color:#16a34a;">${co2Saved != null ? `${co2Saved} kg` : '—'}</td></tr>
+        </tbody>
+      </table>` : '';
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Route Report - ${vehicle}</title>
+      <style>body{font-family:sans-serif;max-width:720px;margin:40px auto;color:#111;} h1{color:#034626;} table{width:100%;border-collapse:collapse;} @media print{body{margin:20px;}}</style>
+      </head><body>
+      <h1>Route Report</h1>
+      <p style="color:#555;font-size:13px;">Vehicle: <strong>${vehicle}</strong> &nbsp;·&nbsp; Date: <strong>${date}</strong></p>
+      ${googleMapsUrl ? `<p style="font-size:12px;"><a href="${googleMapsUrl}" style="color:#034626;">Open in Google Maps</a></p>` : ''}
+      <h2 style="font-size:15px;margin-top:24px;border-bottom:1px solid #e5e7eb;padding-bottom:6px;">Stop Order</h2>
+      <table><tbody>${stopsHtml}</tbody></table>
+      <h2 style="font-size:15px;margin-top:24px;border-bottom:1px solid #e5e7eb;padding-bottom:6px;">Route Metrics</h2>
+      ${metricsHtml}
+      </body></html>`;
+    const win = window.open('', '_blank');
+    if (!win) return;
+    win.document.write(html);
+    win.document.close();
+    win.focus();
+    setTimeout(() => { win.print(); }, 300);
   };
 
   return (
@@ -583,12 +659,42 @@ const AnalyticsPanel = ({ isOpen, onClose, metrics, formData }: any) => {
             )}
 
             {/* Export */}
-            <button
-              onClick={handleExport}
-              className="w-full bg-[#034626] text-white py-2 px-4 rounded-lg hover:bg-[#023219] transition-colors"
-            >
-              Export Report
-            </button>
+            <div className="relative">
+              <button
+                onClick={() => setExportOpen((o) => !o)}
+                className="w-full bg-[#034626] text-white py-2 px-4 rounded-lg hover:bg-[#023219] transition-colors flex items-center justify-between"
+              >
+                <span>Export Report</span>
+                <svg xmlns="http://www.w3.org/2000/svg" className={`h-4 w-4 transition-transform ${exportOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+              {exportOpen && (
+                <div className="absolute bottom-full mb-1 left-0 w-full bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden z-10">
+                  <button
+                    onClick={() => { handleExport(); setExportOpen(false); }}
+                    className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 flex items-center gap-3"
+                  >
+                    <span className="text-gray-400 font-mono text-xs w-8">JSON</span>
+                    <span className="text-gray-700">Full data export</span>
+                  </button>
+                  <button
+                    onClick={() => { handleExportCsv(); setExportOpen(false); }}
+                    className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 flex items-center gap-3 border-t border-gray-100"
+                  >
+                    <span className="text-gray-400 font-mono text-xs w-8">CSV</span>
+                    <span className="text-gray-700">Stops + metrics (Excel)</span>
+                  </button>
+                  <button
+                    onClick={() => { handleExportPdf(); setExportOpen(false); }}
+                    className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 flex items-center gap-3 border-t border-gray-100"
+                  >
+                    <span className="text-gray-400 font-mono text-xs w-8">PDF</span>
+                    <span className="text-gray-700">Printable route report</span>
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>
@@ -619,6 +725,7 @@ const MapView = ({
   metrics,
 }: any) => {
   const [isAnalyticsPanelOpen, setIsAnalyticsPanelOpen] = useState(false);
+  const [isStopsPanelOpen, setIsStopsPanelOpen] = useState(false);
 
   /**
    * Returns the color of a marker based on its index in the stop list:
@@ -730,7 +837,10 @@ const MapView = ({
       </div>
 
       {/* Top navigation bar */}
-      <div className="absolute top-0 w-full p-4 z-[1000] flex justify-between items-start text-black">
+      <div
+        className="absolute top-0 p-4 z-[1000] flex justify-between items-start text-black transition-all duration-300 ease-in-out"
+        style={{ left: 0, right: isAnalyticsPanelOpen ? '384px' : '0px' }}
+      >
         <div className="flex gap-2">
           <button
             onClick={onBack}
@@ -739,10 +849,16 @@ const MapView = ({
             <span>Back</span>
           </button>
           <button
-            onClick={() => setIsAnalyticsPanelOpen((o) => !o)}
+            onClick={() => { setIsAnalyticsPanelOpen((o) => !o); setIsStopsPanelOpen(false); }}
             className="bg-[#034626] text-white rounded-lg px-4 py-2 shadow-lg hover:bg-[#023219] flex items-center gap-2"
           >
             <span>Analytics</span>
+          </button>
+          <button
+            onClick={() => { setIsStopsPanelOpen((o) => !o); setIsAnalyticsPanelOpen(false); }}
+            className="bg-white rounded-lg px-4 py-2 shadow-lg hover:bg-gray-50 flex items-center gap-2"
+          >
+            <span>Stops</span>
           </button>
         </div>
 
@@ -819,6 +935,43 @@ const MapView = ({
               </div>
             );
           })()}
+      </div>
+
+      {/* Stops list panel */}
+      <div
+        className={`fixed right-0 top-0 h-full w-80 bg-white shadow-lg transform transition-transform duration-300 ease-in-out z-[1001] flex flex-col ${isStopsPanelOpen ? 'translate-x-0' : 'translate-x-full'}`}
+      >
+        <div className="p-4 border-b border-gray-200 flex justify-between items-center">
+          <h2 className="text-xl font-semibold text-black">Stop Order</h2>
+          <button onClick={() => setIsStopsPanelOpen(false)} className="p-2">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        <div className="flex-1 overflow-y-auto p-4">
+          <div className="space-y-2">
+            {formData.stops.map((stop: any, index: number) => {
+              const total = formData.stops.length;
+              const isStart = index === 0;
+              const isEnd = index === total - 1;
+              const weightValue = stop.weightKg ? Number(stop.weightKg) : 0;
+              return (
+                <div key={index} className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
+                  <div className={`w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0 mt-0.5 ${isStart ? 'bg-blue-500' : isEnd ? 'bg-red-500' : 'bg-orange-400'}`}>
+                    {isStart ? 'S' : isEnd ? 'E' : index}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-gray-800 leading-snug">{stop.location}</p>
+                    {weightValue > 0 && (
+                      <p className="text-xs text-[#034626] font-semibold mt-0.5">{weightValue} kg pickup</p>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
       </div>
 
       {/* Map legend component (assumed to explain marker colors) */}
