@@ -23,7 +23,7 @@ import time
 from datetime import datetime
 from pathlib import Path
 from route_optimizer import RouteOptimizer
-from matrix_builder import MatrixBuilder, CO2_KG_PER_LITER
+from matrix_builder import MatrixBuilder
 
 # Configure logging
 logging.basicConfig(
@@ -191,7 +191,7 @@ def optimize_route():
         return jsonify({"error": "Payload must include a 'stops' list with at least 2 stops."}), 400
 
     maintain_order     = bool(payload.get("maintainOrder", False))
-    vehicle_weight_kg  = float(payload.get("vehicleWeightKg", 9000))
+    vehicle_weight_kg  = int(payload.get("vehicleWeightKg", 9000))
     fuel_type          = str(payload.get("fuelType", "diesel")).lower()
 
     # Validate coords
@@ -246,7 +246,7 @@ def optimize_route():
             )
 
             # Betas sourced from the loaded model (or fallback coefficients)
-            betas = matrix_builder.get_physics_betas()
+            betas = matrix_builder.get_physics_betas(vehicle_weight_kg)
 
             # --- Build per-stop pickup weights from frontend inputs ---
             # TSP uses the weight-agnostic fuel_matrix (base vehicle weight only).
@@ -276,7 +276,7 @@ def optimize_route():
                 ) * matrices['fuel_correction'], 2
             )
             original_co2_kg = round(
-                original_fuel_liters * CO2_KG_PER_LITER.get(fuel_type, 2.68), 2
+                original_fuel_liters * matrix_builder.co2_kg_per_liter.get(fuel_type, 2.68), 2
             )
             logging.info(
                 f"Original route: {original_distance_km} km | "
@@ -375,7 +375,7 @@ def optimize_route():
                     ) * matrices['fuel_correction'], 2
                 )
                 co2_kg = round(
-                    fuel_liters * CO2_KG_PER_LITER.get(fuel_type, 2.68), 2
+                    fuel_liters * matrix_builder.co2_kg_per_liter.get(fuel_type, 2.68), 2
                 )
                 # Recompute distance/duration from matrices so they're comparable to
                 # originalDistanceKm / originalDurationMin (same data source, apples-to-apples)

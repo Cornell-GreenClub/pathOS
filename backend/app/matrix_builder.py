@@ -36,23 +36,6 @@ try:
 except ImportError:
     _JOBLIB_AVAILABLE = False
 
-# Hardcoded fallback coefficients (trained on eVED data, March 2026).
-# Used only when the .joblib model file cannot be found.
-_FALLBACK_COEFF = {
-    'intercept':         0.025024,
-    'Total_Distance_km': 0.06962583,
-    'Dist_x_Weight':     0.00005552431,
-    'Elev_x_Weight':     0.000002550080,
-    'Dist_x_Speed2':     0.000001102072,
-}
-
-DIESEL_CORRECTION   = 0.65
-GASOLINE_CORRECTION = 1.0
-
-CO2_KG_PER_LITER = {
-    'diesel':   2.68,
-    'gasoline': 2.31,
-}
 
 # Default model path: ml/Final_Outputs/ relative to the project root.
 # backend/app/matrix_builder.py → parent.parent.parent = project root
@@ -76,10 +59,17 @@ class MatrixBuilder:
             except Exception as exc:
                 logging.warning(f"ORS client init failed: {exc}")
 
-        # --- Load trained physics model ---
+        # --- Load weight-class beta boundaries ---
+        _bb_path = Path(__file__).parent / 'beta_boundaries.json'
+        with open(_bb_path, 'r', encoding='utf-8') as _f:
+            self._beta_boundaries: dict = json.load(_f)
+        logging.info(f"Loaded beta boundaries ({list(self._beta_boundaries.keys())})")
+        self.fuel_corrections  = self._beta_boundaries['fuel_corrections']
+        self.co2_kg_per_liter  = self._beta_boundaries['co2_kg_per_liter']
+
+        # --- Load trained physics model (for model_loaded / model_r2 metadata only) ---
         self._sklearn_model = None
         self._model_metrics = None
-        self._coeff = dict(_FALLBACK_COEFF)  # start with fallback; overwritten if model loads
 
         if _JOBLIB_AVAILABLE:
             _env_path = os.environ.get('MODEL_PATH', '')
@@ -90,37 +80,28 @@ class MatrixBuilder:
                 if hasattr(sk_model, 'predict') and hasattr(sk_model, 'coef_'):
                     self._sklearn_model = sk_model
                     self._model_metrics = model_data.get('metrics') if isinstance(model_data, dict) else None
-                    # Extract coefficients from model so optimizer betas stay in sync
-                    coefs = sk_model.coef_
-                    self._coeff = {
-                        'intercept':         float(sk_model.intercept_),
-                        'Total_Distance_km': float(coefs[0]),
-                        'Dist_x_Weight':     float(coefs[1]),
-                        'Elev_x_Weight':     float(coefs[2]),
-                        'Dist_x_Speed2':     float(coefs[3]),
-                    }
                     r2 = self._model_metrics.get('r2') if self._model_metrics else None
                     logging.info(
                         f"Loaded fuel model from: {model_path}"
                         + (f" (R²={r2:.4f})" if r2 is not None else "")
                     )
                 else:
-                    logging.warning("Model file found but object is not a fitted sklearn model. Using fallback coefficients.")
+                    logging.warning("Model file found but object is not a fitted sklearn model. Model metadata unavailable.")
             except Exception as exc:
-                logging.warning(f"Could not load fuel model ({exc}). Using fallback coefficients.")
+                logging.warning(f"Could not load fuel model ({exc}). Model metadata unavailable.")
         else:
-            logging.warning("joblib/numpy not available. Using fallback coefficients.")
+            logging.warning("joblib/numpy not available. Model metadata unavailable.")
 
     # ------------------------------------------------------------------ #
     #  Public API                                                          #
     # ------------------------------------------------------------------ #
 
-    def get_physics_betas(self) -> Dict:
+    def get_physics_betas(self, vehicle_weight_kg: int) -> Dict:
         """
-        Return the PHYSICS_BETAS dict for RouteOptimizer, sourced from the
-        loaded model if available, otherwise from the hardcoded fallback.
+        Return the PHYSICS_BETAS dict for RouteOptimizer for the given vehicle weight.
+        Bucket: <5000 kg → 0_5k, 5000–9999 → 5k_10k, 10000–19999 → 10k_20k, ≥20000 → 20k.
         """
-        c = self._coeff
+        c = self._select_betas(vehicle_weight_kg)
         return {
             'Intercept':         c['intercept'],
             'Total_Distance_km': c['Total_Distance_km'],
@@ -128,6 +109,18 @@ class MatrixBuilder:
             'Elev_x_Weight':     c['Elev_x_Weight'],
             'Dist_x_Speed2':     c['Dist_x_Speed2'],
         }
+
+    def _select_betas(self, vehicle_weight_kg: int) -> Dict:
+        """Return the raw beta dict from beta_boundaries.json for the given vehicle weight (kg)."""
+        w = int(vehicle_weight_kg)
+        if w < 5000:
+            return self._beta_boundaries['0_5k']
+        elif w < 10000:
+            return self._beta_boundaries['5k_10k']
+        elif w < 20000:
+            return self._beta_boundaries['10k_20k']
+        else:
+            return self._beta_boundaries['20k']
 
     def build(
         self,
@@ -147,9 +140,7 @@ class MatrixBuilder:
         """
         n = len(osrm_distances_m)
         fuel_type = fuel_type.lower()
-        fuel_correction = (
-            DIESEL_CORRECTION if fuel_type == 'diesel' else GASOLINE_CORRECTION
-        )
+        fuel_correction = self.fuel_corrections.get(fuel_type, 1.0)
 
         # OSRM meters → km, seconds → minutes
         dist_km  = [[osrm_distances_m[i][j] / 1000.0 for j in range(n)] for i in range(n)]
@@ -175,10 +166,10 @@ class MatrixBuilder:
                 if i != j:
                     elev_gain[i][j] = max(0.0, elevations[j] - elevations[i])
 
-        # Fuel matrix (liters) using physics model
+        # Fuel matrix (liters) using weight-class betas from beta_boundaries.json
         w = vehicle_weight_kg
         fuel = [[0.0] * n for _ in range(n)]
-        c = self._coeff
+        c = self._select_betas(vehicle_weight_kg)
 
         for i in range(n):
             for j in range(n):
@@ -187,18 +178,13 @@ class MatrixBuilder:
                 d = dist_km[i][j]
                 e = elev_gain[i][j]
                 s = speed_kmh[i][j]
-
-                if self._sklearn_model is not None:
-                    features = np.array([[d, d * w, e * w, d * s * s]])
-                    raw = float(self._sklearn_model.predict(features)[0])
-                else:
-                    raw = (
-                        c['intercept']
-                        + c['Total_Distance_km'] * d
-                        + c['Dist_x_Weight']     * (d * w)
-                        + c['Elev_x_Weight']     * (e * w)
-                        + c['Dist_x_Speed2']     * (d * s * s)
-                    )
+                raw = (
+                    c['intercept']
+                    + c['Total_Distance_km'] * d
+                    + c['Dist_x_Weight']     * (d * w)
+                    + c['Elev_x_Weight']     * (e * w)
+                    + c['Dist_x_Speed2']     * (d * s * s)
+                )
                 fuel[i][j] = max(0.0, raw * fuel_correction)
 
         model_r2 = (
