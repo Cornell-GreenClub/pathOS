@@ -1,0 +1,22 @@
+{
+  "run_id": "test_route_10",
+  "n_stops": 10,
+  "vehicle_weight_kg": 9000.0,
+  "fuel_type": "diesel",
+  "fuel_correction": 0.65,
+  "timestamp": "2026-04-21T00:00:00.000000Z",
+  "labels": [
+    "Tompkins County Fleet Depot",
+    "Ithaca High School",
+    "DeWitt Middle School",
+    "Cayuga Heights Elementary",
+    "Caroline Elementary",
+    "Dryden High School",
+    "Groton Central School",
+    "Lansing Middle School",
+    "Trumansburg Elementary",
+    "Enfield Elementary"
+  ],
+  "total_pickup_kg": 4250.0,
+  "max_loaded_kg": 13250.0
+}

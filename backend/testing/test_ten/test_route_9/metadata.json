@@ -1,0 +1,20 @@
+{
+  "run_id": "test_route_9",
+  "n_stops": 8,
+  "vehicle_weight_kg": 9000.0,
+  "fuel_type": "diesel",
+  "fuel_correction": 0.65,
+  "timestamp": "2026-04-21T00:00:00.000000Z",
+  "labels": [
+    "Ithaca North Depot",
+    "Lansing High School",
+    "Groton Elementary",
+    "Dryden Elementary School",
+    "Etna Community Hub",
+    "Varna Road Stop",
+    "Ellis Hollow Community",
+    "East Ithaca Recreation Center"
+  ],
+  "total_pickup_kg": 2530.0,
+  "max_loaded_kg": 11530.0
+}

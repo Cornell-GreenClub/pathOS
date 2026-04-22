@@ -1,0 +1,23 @@
+{
+  "by_index": {
+    "0": 0.0,
+    "1": 150.0,
+    "2": 480.0,
+    "3": 320.0,
+    "4": 200.0,
+    "5": 390.0,
+    "6": 0.0
+  },
+  "by_name": {
+    "Cayuga Lake Marina Depot": 0.0,
+    "Taughannock Falls State Park Hub": 150.0,
+    "Trumansburg Community Center": 480.0,
+    "Cass Park Recreation Center": 320.0,
+    "Stewart Park Community Hub": 200.0,
+    "North Cayuga Street Stop": 390.0,
+    "Cayuga Medical Center": 0.0
+  },
+  "total_pickup_kg": 1540.0,
+  "base_vehicle_kg": 9000.0,
+  "max_loaded_kg": 10540.0
+}

@@ -1,0 +1,6 @@
+,Ithaca Warehouse Depot,Cornell Ag Quad Pickup,Ithaca High School Stop,Boynton Middle School,Southwest Ithaca Terminal
+Ithaca Warehouse Depot,0.0,3.813764,2.318833,3.124085,4.229634
+Cornell Ag Quad Pickup,3.813764,0.0,4.296091,3.766789,7.311634
+Ithaca High School Stop,2.318833,4.296091,0.0,5.263107,3.082099
+Boynton Middle School,3.124085,3.766789,5.263107,0.0,7.287646
+Southwest Ithaca Terminal,4.229634,7.311634,3.082099,7.287646,0.0

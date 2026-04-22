@@ -1,0 +1,48 @@
+{
+  "initial_route": {
+    "route": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
+    "route_names": [
+      "West Hill Depot",
+      "South Hill Elementary School",
+      "Newfield Community Center",
+      "Downtown Ithaca Hub",
+      "West End Community Center",
+      "Enfield Elementary School"
+    ],
+    "distance_km": 47.4241,
+    "fuel_cost": 36.177259
+  },
+  "optimal_route": {
+    "route": [
+      0,
+      4,
+      3,
+      1,
+      2,
+      5
+    ],
+    "route_names": [
+      "West Hill Depot",
+      "West End Community Center",
+      "Downtown Ithaca Hub",
+      "South Hill Elementary School",
+      "Newfield Community Center",
+      "Enfield Elementary School"
+    ],
+    "distance_km": 29.4422,
+    "fuel_cost": 23.16247
+  },
+  "notes": {
+    "optimization_savings_pct": "36.0%",
+    "description": "6-stop west/south Ithaca; heavy stops (800, 600 kg) early in naive order; significant savings expected",
+    "method": "brute-force enumeration of all middle-stop permutations",
+    "betas_bucket": "5k_10k (vehicle 9000 kg)"
+  }
+}

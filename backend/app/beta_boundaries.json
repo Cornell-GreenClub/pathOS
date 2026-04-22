@@ -8,7 +8,7 @@
     "gasoline": 2.31
   },
   "0_5k": {
-    "intercept": 0,
+    "Intercept": 0,
     "Total_Distance_km": 0,
     "Dist_x_Weight": 0,
     "Elev_x_Weight": 0,
@@ -22,14 +22,14 @@
     "Dist_x_Speed2": 1.102072e-6
   },
   "10k_20k": {
-    "intercept": 0,
+    "Intercept": 0,
     "Total_Distance_km": 0,
     "Dist_x_Weight": 0,
     "Elev_x_Weight": 0,
     "Dist_x_Speed2": 0
   },
   "20k": {
-    "intercept": 0,
+    "Intercept": 0,
     "Total_Distance_km": 0,
     "Dist_x_Weight": 0,
     "Elev_x_Weight": 0,

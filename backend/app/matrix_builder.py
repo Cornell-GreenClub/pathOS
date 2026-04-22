@@ -103,7 +103,7 @@ class MatrixBuilder:
         """
         c = self._select_betas(vehicle_weight_kg)
         return {
-            'Intercept':         c['intercept'],
+            'Intercept':         c['Intercept'],
             'Total_Distance_km': c['Total_Distance_km'],
             'Dist_x_Weight':     c['Dist_x_Weight'],
             'Elev_x_Weight':     c['Elev_x_Weight'],
@@ -179,7 +179,7 @@ class MatrixBuilder:
                 e = elev_gain[i][j]
                 s = speed_kmh[i][j]
                 raw = (
-                    c['intercept']
+                    c['Intercept']
                     + c['Total_Distance_km'] * d
                     + c['Dist_x_Weight']     * (d * w)
                     + c['Elev_x_Weight']     * (e * w)

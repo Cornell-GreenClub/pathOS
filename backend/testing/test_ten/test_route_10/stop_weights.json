@@ -1,0 +1,29 @@
+{
+  "by_index": {
+    "0": 0.0,
+    "1": 480.0,
+    "2": 520.0,
+    "3": 350.0,
+    "4": 900.0,
+    "5": 700.0,
+    "6": 400.0,
+    "7": 580.0,
+    "8": 320.0,
+    "9": 0.0
+  },
+  "by_name": {
+    "Tompkins County Fleet Depot": 0.0,
+    "Ithaca High School": 480.0,
+    "DeWitt Middle School": 520.0,
+    "Cayuga Heights Elementary": 350.0,
+    "Caroline Elementary": 900.0,
+    "Dryden High School": 700.0,
+    "Groton Central School": 400.0,
+    "Lansing Middle School": 580.0,
+    "Trumansburg Elementary": 320.0,
+    "Enfield Elementary": 0.0
+  },
+  "total_pickup_kg": 4250.0,
+  "base_vehicle_kg": 9000.0,
+  "max_loaded_kg": 13250.0
+}

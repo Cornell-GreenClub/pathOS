@@ -1,0 +1,64 @@
+{
+  "initial_route": {
+    "route": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9
+    ],
+    "route_names": [
+      "Tompkins County Fleet Depot",
+      "Ithaca High School",
+      "DeWitt Middle School",
+      "Cayuga Heights Elementary",
+      "Caroline Elementary",
+      "Dryden High School",
+      "Groton Central School",
+      "Lansing Middle School",
+      "Trumansburg Elementary",
+      "Enfield Elementary"
+    ],
+    "distance_km": 119.3039,
+    "fuel_cost": 95.050204
+  },
+  "optimal_route": {
+    "route": [
+      0,
+      1,
+      4,
+      5,
+      6,
+      7,
+      3,
+      2,
+      8,
+      9
+    ],
+    "route_names": [
+      "Tompkins County Fleet Depot",
+      "Ithaca High School",
+      "Caroline Elementary",
+      "Dryden High School",
+      "Groton Central School",
+      "Lansing Middle School",
+      "Cayuga Heights Elementary",
+      "DeWitt Middle School",
+      "Trumansburg Elementary",
+      "Enfield Elementary"
+    ],
+    "distance_km": 118.142,
+    "fuel_cost": 93.658438
+  },
+  "notes": {
+    "optimization_savings_pct": "1.5%",
+    "description": "10-stop county-wide; Caroline (900 kg) and Dryden (700 kg) are heaviest; optimal defers heavy stops",
+    "method": "brute-force enumeration of all middle-stop permutations",
+    "betas_bucket": "5k_10k (vehicle 9000 kg)"
+  }
+}

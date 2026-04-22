@@ -1,0 +1,19 @@
+{
+  "by_index": {
+    "0": 0.0,
+    "1": 1200.0,
+    "2": 150.0,
+    "3": 900.0,
+    "4": 0.0
+  },
+  "by_name": {
+    "Ithaca Warehouse Depot": 0.0,
+    "Cornell Ag Quad Pickup": 1200.0,
+    "Ithaca High School Stop": 150.0,
+    "Boynton Middle School": 900.0,
+    "Southwest Ithaca Terminal": 0.0
+  },
+  "total_pickup_kg": 2250.0,
+  "base_vehicle_kg": 9000.0,
+  "max_loaded_kg": 11250.0
+}
