@@ -2,18 +2,22 @@
 Route Optimization: TSP + Simulated Annealing with multi-factor cost model.
 
 Pipeline:
-1. TSP solver (OR-Tools) finds initial round-trip route using fuel consumption matrix.
-   Route starts and ends at depot (index 0).
-2. Simulated Annealing refines using full cost model:
+1. TSP solver (OR-Tools) finds initial open-path route using the fuel matrix.
+   The fuel matrix is weight-agnostic (base vehicle weight only), so TSP gives a
+   distance-efficient starting point rather than a load-aware one.
+2. Simulated Annealing refines using the full load-aware cost model:
    cost_per_leg = B0 + B1(Dist) + B2(Dist*Weight) + B3(Elev*Weight) + B4(Dist*Speed^2)
-   where Weight = base_vehicle_kg + accumulated pickup weight.
+   where Weight = base_vehicle_kg + all pickups accumulated so far.
+   This is where weight ordering is optimized — heavy stops visited later = less fuel.
 """
 import math
 import random
 import logging
 from ortools.constraint_solver import routing_enums_pb2, pywrapcp
 
-FUEL_SCALE = 10000  # Scale fuel floats to ints for OR-Tools
+# OR-Tools requires integer arc costs. Multiplying floats by this scale preserves
+# 4 decimal places of precision while keeping values within safe integer range.
+FUEL_SCALE = 10000
 
 
 class RouteOptimizer:
@@ -29,14 +33,17 @@ class RouteOptimizer:
                        location_names):
         """
         Main entry point. Returns open-path route [0, ..., n-1].
-        Start (index 0) and end (index n-1) are fixed; middle stops are optimized.
+        Index 0 (depot/start) and index n-1 (final destination) are fixed.
+        All middle stops are reordered to minimize total fuel cost.
         """
         n = len(location_names)
         if n <= 2:
             logging.info("2 or fewer stops - no optimization needed.")
             return list(range(n))
 
-        # Step 1: TSP on fuel matrix (open path: fixed start 0, fixed end n-1)
+        # Step 1: TSP gives a distance-efficient initial ordering.
+        # It operates on the weight-agnostic fuel matrix, so it doesn't account
+        # for load accumulation — that's corrected in Step 2.
         tsp_route = self._solve_tsp(fuel_matrix, location_names)
         if not tsp_route:
             logging.warning("TSP solver failed.")
@@ -54,7 +61,10 @@ class RouteOptimizer:
         logging.info(f"  Cost:     {tsp_cost:.6f}")
         logging.info("=" * 80)
 
-        # Step 2: Simulated Annealing (5 rounds, each more greedy than the last)
+        # Step 2: Five SA rounds with decreasing temperature and iteration count.
+        # Each round starts from the best route found so far and searches more
+        # greedily than the last, narrowing in on the optimum without getting
+        # stuck in early local minima.
         sa_configs = [
             {"initial_temp_pct": 0.8,  "cooling_rate": 0.998, "max_iterations": 5000},
             {"initial_temp_pct": 0.5,  "cooling_rate": 0.997, "max_iterations": 5000},
@@ -102,6 +112,8 @@ class RouteOptimizer:
 
     def _leg_cost(self, from_idx, to_idx, cumulative_weight,
                   distance_matrix, elevation_matrix, speed_matrix, betas):
+        # Physics-informed fuel model for a single leg.
+        # Returns raw model output — caller multiplies by fuel_correction for liters.
         d = distance_matrix[from_idx][to_idx]
         e = elevation_matrix[from_idx][to_idx]
         s = speed_matrix[from_idx][to_idx]
@@ -114,6 +126,10 @@ class RouteOptimizer:
 
     def _route_cost(self, route, distance_matrix, elevation_matrix,
                     speed_matrix, weights, betas, base_vehicle_kg):
+        # Weight accumulates before each leg: the vehicle picks up at stop[i]
+        # and then drives to stop[i+1] carrying that additional load.
+        # This is what makes stop ordering matter — heavy pickups early mean
+        # carrying that weight over more subsequent legs.
         total = 0.0
         cumulative_weight = base_vehicle_kg
         for i in range(len(route) - 1):
@@ -135,8 +151,9 @@ class RouteOptimizer:
                               initial_temp_pct=0.5, cooling_rate=0.995,
                               min_temp=0.0001, max_iterations=5000):
         """
-        SA with full cost model. First and last stops (depot) are FIXED.
-        All middle stops are free to swap.
+        SA over middle stops only — first and last are fixed.
+        Tracks best-ever separately from current so worse-accepting moves
+        can explore without losing the global best found so far.
         """
         swappable = list(range(1, len(route) - 1))
         if len(swappable) < 2:
@@ -150,6 +167,9 @@ class RouteOptimizer:
         best = current.copy()
         best_cost = current_cost
 
+        # Temperature is scaled to the starting cost so it's meaningful regardless
+        # of route size — a small absolute delta means different things on a 5-stop
+        # vs 15-stop route.
         initial_temp = max(abs(start_cost) * initial_temp_pct, 1.0)
         temp = initial_temp
 
@@ -159,7 +179,9 @@ class RouteOptimizer:
             if temp < min_temp:
                 break
 
-            # 2-opt: 50% swap, 50% segment reversal
+            # Two move types keep the search from getting stuck in narrow neighborhoods:
+            # swap (good for weight reordering) and segment reversal (good for
+            # untangling geographic crossing paths).
             pos_a, pos_b = sorted(random.sample(swappable, 2))
             candidate = current.copy()
             if random.random() < 0.5:
@@ -178,6 +200,8 @@ class RouteOptimizer:
                 result = "ACCEPT (better)"
                 accepted += 1; improved += 1
             else:
+                # Accept worse moves with probability e^(-delta/T).
+                # Early in the run (high T) this is near 1; late (low T) near 0.
                 prob = math.exp(-delta / max(temp, 1e-15))
                 if random.random() < prob:
                     current, current_cost = candidate, cand_cost
@@ -213,15 +237,16 @@ class RouteOptimizer:
         """
         Solves open-path TSP: fixed start at index 0, fixed end at index n-1.
 
-        Technique: use OR-Tools round-trip formulation but block middle stops
-        from returning to the depot (cost = INF) and make the end stop's return
-        to the depot free (cost = 0). This forces the route:
-            0 -> [middle stops] -> n-1 -> depot (free)
-        The trailing depot is stripped before returning.
+        OR-Tools only supports round-trip (closed) TSP natively. The open-path
+        is achieved by a trick: block all middle stops from returning to the depot
+        (cost = INF) and give the final stop a free return (cost = 0). This forces
+        the solver into the shape: 0 -> [middle stops] -> n-1 -> depot (free arc).
+        The phantom return leg is stripped before the route is returned.
         """
         n = len(fuel_matrix)
         INF = 10 ** 9
 
+        # Convert floats to ints — OR-Tools constraint solver requires integer costs.
         int_matrix = [[int(round(fuel_matrix[i][j] * FUEL_SCALE))
                         for j in range(n)] for i in range(n)]
 

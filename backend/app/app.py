@@ -1,15 +1,17 @@
 """
-Flask Web Server
-Receives an API-style JSON object, optionally optimizes the route via your RouteOptimizer
-(using an OSRM distance matrix), then returns the reordered stops and route geometry.
+Flask Web Server — pathOS route optimization API.
 
-Data Flow:
-1. Client sends a list of stops + config (fuel, maintainOrder).
-2. Server calls OSRM Table API to get a distance matrix for all stops.
-3. Server passes matrix to RouteOptimizer (OR-Tools) to find the optimal order (TSP).
-4. Server reorders stops based on optimizer output.
-5. Server calls OSRM Route API to get the final path geometry (lat/lng points) for the map.
-6. Server returns optimized stops, geometry, and stats to client.
+Request flow for /optimize_route:
+1. Client sends stops + config (vehicle weight, fuel type, maintainOrder flag).
+2. Server wakes OSRM if needed, then calls OSRM Table API to get an NxN
+   distance/duration matrix for all stops.
+3. MatrixBuilder converts that into distance, speed, elevation, and fuel matrices.
+4. RouteOptimizer reorders the middle stops to minimize physics-based fuel cost.
+5. Server calls OSRM Route API on the optimized stop order to get the polyline
+   geometry for the map (separate call — Table API only gives pairwise costs,
+   not the actual path shape).
+6. Response includes reordered stops, geometry, fuel/CO2 metrics, and
+   before/after comparison values.
 """
 
 from flask import Flask, request, jsonify
@@ -25,7 +27,6 @@ from pathlib import Path
 from route_optimizer import RouteOptimizer
 from matrix_builder import MatrixBuilder
 
-# Configure logging
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s [%(levelname)s] %(message)s',
@@ -75,15 +76,16 @@ def normalize_stops_for_printing(stops):
 
 def get_osrm_host():
     """
-    Wake up the OSRM server if a wake URL is provided.
-    Returns the OSRM host IP.
+    Wake up the OSRM server if a wake URL is provided, then return its host URL.
+    The OSRM server runs on AWS EC2 and may be stopped to save cost — the wake
+    URL hits a Lambda that starts it and polls until the OSRM engine is ready.
     """
     if not config.OSRM_WAKE_URL:
         return config.OSRM_HOST
 
     headers = {"x-osrm-secret": config.OSRM_WAKE_SECRET}
     max_retries = 18  # Up to 90 seconds
-    
+
     for i in range(max_retries):
         try:
             resp = requests.get(config.OSRM_WAKE_URL, headers=headers, timeout=10)
@@ -104,17 +106,17 @@ def get_osrm_host():
                 logging.warning(f"Unexpected wake response: {resp.status_code} {resp.text}")
         except Exception as e:
             logging.error(f"Error waking OSRM server: {e}")
-            
+
         time.sleep(5)
-        
+
     logging.error("Failed to wake OSRM server within the timeout.")
     return None
 
 
 def format_table_url(stops, osrm_host=None):
     """
-    Build OSRM table API URL for a list of stops.
-    The Table API returns a square matrix of travel times/distances between all pairs of coordinates.
+    Build OSRM Table API URL — returns an NxN matrix of pairwise
+    travel distances and durations between all stops.
     """
     host = osrm_host or config.OSRM_HOST
     coords_list = []
@@ -128,8 +130,9 @@ def format_table_url(stops, osrm_host=None):
 
 def format_route_url(stops, osrm_host=None):
     """
-    Build OSRM route API URL for ordered stops with GeoJSON overview.
-    The Route API returns the actual path geometry (waypoints) to draw on the map.
+    Build OSRM Route API URL — returns the actual road path geometry
+    (lat/lng polyline) for the ordered list of stops, used to draw the
+    route on the map. Separate from the Table API call.
     """
     host = osrm_host or config.OSRM_HOST
     coords_list = [f"{s['coords']['lng']},{s['coords']['lat']}" for s in stops]
@@ -139,7 +142,7 @@ def format_route_url(stops, osrm_host=None):
 
 @app.route("/health", methods=["GET"])
 def health_check():
-    """Lightweight endpoint to wake up the server."""
+    """Lightweight endpoint to keep the Render server warm between requests."""
     return jsonify({"status": "ok"}), 200
 
 
@@ -160,24 +163,19 @@ def get_run(run_id):
 def optimize_route():
     """
     Main optimization endpoint.
-    
+
     Expected JSON Payload:
     {
         "stops": [
-            {"location": "Address 1", "coords": {"lat": ..., "lng": ...}},
+            {"location": "Address 1", "coords": {"lat": ..., "lng": ...}, "weightKg": float},
             ...
         ],
-        "maintainOrder": boolean,  # If true, skips optimization
-        "currentFuel": float       # MPG for cost calculation
+        "maintainOrder": boolean,  # If true, skips optimization and goes straight to geometry
+        "vehicleWeightKg": int,    # Base vehicle weight (default 9000)
+        "fuelType": string         # "diesel" or "gasoline" (default "diesel")
     }
 
-    Returns:
-    {
-        "optimizedStops": [...],   # Reordered list of stops
-        "routeGeometry": [[lat, lng], ...], # Polyline points for map
-        "distance": float,         # Total distance in meters
-        "duration": float          # Total duration in seconds
-    }
+    Returns optimized stop order, map geometry, and before/after fuel metrics.
     """
     if optimizer is None:
         return jsonify({"error": "Optimizer is not initialized. Check server logs."}), 500
@@ -194,19 +192,16 @@ def optimize_route():
     vehicle_weight_kg  = int(payload.get("vehicleWeightKg", 9000))
     fuel_type          = str(payload.get("fuelType", "diesel")).lower()
 
-    # Validate coords
     for i, s in enumerate(stops):
         c = s.get("coords")
         if not c or "lat" not in c or "lng" not in c:
             return jsonify({"error": f"Stop at index {i} is missing coords.lat/coords.lng."}), 400
 
     try:
-        # --- Wake up OSRM server ---
         osrm_host = get_osrm_host()
         if not osrm_host:
             return jsonify({"error": "The OSRM Server is still warming up. Please try again in a moment."}), 503
 
-        # --- PRINT ORIGINAL STOPS ---
         print_stops("ORIGINAL STOP ORDER", normalize_stops_for_printing(stops))
 
         run_id   = None
@@ -218,14 +213,15 @@ def optimize_route():
         original_co2_kg       = None
 
         if maintain_order:
+            # Skip all matrix building and optimization — go straight to geometry.
             ordered_stops = stops
         else:
-            # --- Call OSRM Table API ---
+            # ── OSRM Table API: get pairwise distances and durations ──────────
             table_url = format_table_url(stops, osrm_host)
             table_resp = requests.get(table_url, timeout=10)
             table_data = table_resp.json()
 
-            # Inject original location names into the OSRM response so the optimizer prints them
+            # Inject stop names into OSRM sources so the optimizer can log them
             if table_data and 'sources' in table_data:
                 for i, source in enumerate(table_data['sources']):
                     if i < len(stops):
@@ -235,7 +231,7 @@ def optimize_route():
             osrm_durations_s = table_data.get("durations", [])
             n = len(osrm_distances_m)
 
-            # --- Build full physics matrices ---
+            # ── Build physics matrices ────────────────────────────────────────
             coords = [s["coords"] for s in stops]
             matrices = matrix_builder.build(
                 osrm_distances_m=osrm_distances_m,
@@ -245,22 +241,19 @@ def optimize_route():
                 fuel_type=fuel_type,
             )
 
-            # Betas sourced from the loaded model (or fallback coefficients)
             betas = matrix_builder.get_physics_betas(vehicle_weight_kg)
 
-            # --- Build per-stop pickup weights from frontend inputs ---
-            # TSP uses the weight-agnostic fuel_matrix (base vehicle weight only).
-            # SA accumulates these weights stop-by-stop (load-dependent VRP).
+            # Per-stop pickup weights from the frontend (kg loaded at each stop).
+            # Index 0 (depot) typically has weight 0; it's up to the frontend to set this.
             weights = {i: float(stops[i].get('weightKg', 0)) for i in range(n)}
             total_pickup_kg = sum(weights.values())
             logging.info(
                 f"Per-stop weights: {weights} | total pickup: {total_pickup_kg:.1f} kg"
             )
 
-            # --- Compute original (sequential) route metrics for before/after comparison ---
-            # Fuel uses optimizer._route_cost so accumulated pickup weights are applied,
-            # matching exactly how the optimizer evaluates routes (multiply by fuel_correction
-            # to convert raw model output → litres).
+            # ── Capture original route metrics BEFORE optimization ────────────
+            # This gives the before/after comparison shown in the frontend analytics panel.
+            # _route_cost returns raw model output; multiply by fuel_correction for liters.
             original_route = list(range(n))
             original_distance_km = round(
                 sum(matrices['distance_matrix'][i][i + 1] for i in range(n - 1)), 2
@@ -283,7 +276,7 @@ def optimize_route():
                 f"{original_duration_min} min | {original_fuel_liters} L | {original_co2_kg} kg CO2"
             )
 
-            # --- Save matrices to pathos/data/ ---
+            # ── Save matrices for debugging / analysis ────────────────────────
             run_id = datetime.utcnow().strftime('%Y%m%d_%H%M%S') + f'_{n}stops'
             location_names = [s.get('location', f'Stop_{i}') for i, s in enumerate(stops)]
             try:
@@ -303,7 +296,7 @@ def optimize_route():
                 logging.warning(f"Could not save matrices: {save_err}")
                 matrix_path = None
 
-            # --- Call RouteOptimizer with real physics matrices + stop weights ---
+            # ── Run optimizer ─────────────────────────────────────────────────
             reordered = optimizer.optimize_route(
                 fuel_matrix=matrices['fuel_matrix'],
                 distance_matrix=matrices['distance_matrix'],
@@ -315,21 +308,17 @@ def optimize_route():
                 location_names=location_names,
             )
 
-            # --- PRINT RAW OPTIMIZER OUTPUT ---
             logging.info("=== OPTIMIZER RAW OUTPUT ===")
             logging.info(reordered)
             logging.info("============================")
 
-            # --- Map optimizer output ---
+            # Map optimizer index output back to stop dicts for the OSRM Route call
             ordered_stops = []
             if isinstance(reordered, list):
-                # If elements are dicts with coords, use them directly
                 if len(reordered) > 0 and isinstance(reordered[0], dict) and "coords" in reordered[0]:
                     ordered_stops = reordered
-                # If elements are ints, treat as indices
                 elif all(isinstance(x, int) for x in reordered):
                     ordered_stops = [stops[i] for i in reordered]
-                # If elements are strings representing indices
                 else:
                     try:
                         idxs = [int(x) for x in reordered]
@@ -343,10 +332,13 @@ def optimize_route():
 
 
 
-        # --- PRINT OPTIMIZED STOPS ---
         print_stops("OPTIMIZED STOP ORDER", normalize_stops_for_printing(ordered_stops))
 
-        # --- Call OSRM Route API ---
+        # ── OSRM Route API: get road geometry for the optimized order ─────────
+        # This is a separate call from the Table API — it returns the actual
+        # polyline path to draw on the map, not just pairwise cost numbers.
+        # Distance/duration here may differ slightly from matrix values because
+        # OSRM re-routes through all waypoints in sequence.
         route_url = format_route_url(ordered_stops, osrm_host)
         route_resp = requests.get(route_url, timeout=10)
         route_data = route_resp.json()
@@ -357,16 +349,15 @@ def optimize_route():
         distance = route_data["routes"][0].get("distance")   # metres
         duration = route_data["routes"][0].get("duration")   # seconds
 
-        # --- Compute fuel / CO2 metrics if matrices were built ---
         fuel_liters = None
         co2_kg      = None
-        # Default to OSRM Route API values; overridden by matrix values when available
         distance_km  = round(distance / 1000, 2) if distance else None
         duration_min = round(duration / 60, 1)   if duration else None
 
         if not maintain_order and isinstance(reordered, list) and all(isinstance(x, int) for x in reordered):
             try:
-                # Weight-aware fuel: same accumulated-weight model the optimizer used
+                # Recompute fuel from the matrix (not the OSRM route) so it's
+                # on the same data source as originalFuelLiters — apples-to-apples.
                 fuel_liters = round(
                     optimizer._route_cost(
                         reordered,
@@ -377,8 +368,6 @@ def optimize_route():
                 co2_kg = round(
                     fuel_liters * matrix_builder.co2_kg_per_liter.get(fuel_type, 2.68), 2
                 )
-                # Recompute distance/duration from matrices so they're comparable to
-                # originalDistanceKm / originalDurationMin (same data source, apples-to-apples)
                 distance_km = round(
                     sum(matrices['distance_matrix'][reordered[i]][reordered[i + 1]]
                         for i in range(len(reordered) - 1)), 2

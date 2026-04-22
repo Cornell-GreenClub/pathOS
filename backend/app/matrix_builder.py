@@ -7,10 +7,16 @@ coordinates, produces:
   - duration_matrix  (NxN, minutes)
   - speed_matrix     (NxN, km/h)
   - elevation_matrix (NxN, elevation gain in meters, i→j)
-  - fuel_matrix      (NxN, liters, physics model)
+  - fuel_matrix      (NxN, liters, physics model at base vehicle weight)
+
+The fuel_matrix uses the BASE vehicle weight throughout (not load-accumulating).
+This is intentional: the TSP solver only needs relative leg costs to find a
+distance-efficient ordering — load awareness is handled later by RouteOptimizer's
+SA step, which uses the full _route_cost model with cumulative pickup weights.
 
 Fetches elevation from ORS API when ORS_API_KEY is set; otherwise falls back
-to 0 m for all stops.
+to 0 m for all stops (elevation is a secondary cost term, so the fallback still
+produces a useful optimization).
 
 Saves all matrices as CSV to pathos/data/{run_id}/.
 """
@@ -59,7 +65,8 @@ class MatrixBuilder:
             except Exception as exc:
                 logging.warning(f"ORS client init failed: {exc}")
 
-        # --- Load weight-class beta boundaries ---
+        # Beta boundaries define which ML coefficients to use based on vehicle weight class.
+        # Heavier vehicles have different fuel consumption characteristics.
         _bb_path = Path(__file__).parent / 'beta_boundaries.json'
         with open(_bb_path, 'r', encoding='utf-8') as _f:
             self._beta_boundaries: dict = json.load(_f)
@@ -67,7 +74,10 @@ class MatrixBuilder:
         self.fuel_corrections  = self._beta_boundaries['fuel_corrections']
         self.co2_kg_per_liter  = self._beta_boundaries['co2_kg_per_liter']
 
-        # --- Load trained physics model (for model_loaded / model_r2 metadata only) ---
+        # The sklearn model is loaded for metadata only (model_loaded, model_r2 in API response).
+        # The actual beta coefficients used for routing come from beta_boundaries.json,
+        # not from the model object directly — this keeps the optimizer deterministic
+        # even if the model file is unavailable.
         self._sklearn_model = None
         self._model_metrics = None
 
@@ -98,7 +108,7 @@ class MatrixBuilder:
 
     def get_physics_betas(self, vehicle_weight_kg: int) -> Dict:
         """
-        Return the PHYSICS_BETAS dict for RouteOptimizer for the given vehicle weight.
+        Return the beta coefficient dict for RouteOptimizer for the given vehicle weight.
         Bucket: <5000 kg → 0_5k, 5000–9999 → 5k_10k, 10000–19999 → 10k_20k, ≥20000 → 20k.
         """
         c = self._select_betas(vehicle_weight_kg)
@@ -146,7 +156,8 @@ class MatrixBuilder:
         dist_km  = [[osrm_distances_m[i][j] / 1000.0 for j in range(n)] for i in range(n)]
         dur_min  = [[osrm_durations_s[i][j]  / 60.0  for j in range(n)] for i in range(n)]
 
-        # Speed matrix (km/h) = dist_km / dur_hr
+        # Speed = distance / time. Diagonal defaults to 50 km/h (never used in routing,
+        # but prevents division-by-zero if the matrix is ever accessed on the diagonal).
         speed_kmh = [[0.0] * n for _ in range(n)]
         for i in range(n):
             for j in range(n):
@@ -154,19 +165,23 @@ class MatrixBuilder:
                 if i != j and dur_hr > 0:
                     speed_kmh[i][j] = dist_km[i][j] / dur_hr
                 else:
-                    speed_kmh[i][j] = 50.0  # sensible default
+                    speed_kmh[i][j] = 50.0
 
         # Elevation (one ORS call, or zeros)
         elevations = self._get_elevations(coords_latlon)
 
-        # Elevation gain matrix: metres gained travelling from i to j
+        # Only uphill elevation counts as extra fuel cost — coasting downhill
+        # is not modeled as regenerative energy recovery in this diesel model.
         elev_gain = [[0.0] * n for _ in range(n)]
         for i in range(n):
             for j in range(n):
                 if i != j:
                     elev_gain[i][j] = max(0.0, elevations[j] - elevations[i])
 
-        # Fuel matrix (liters) using weight-class betas from beta_boundaries.json
+        # Fuel matrix uses the static base vehicle weight throughout.
+        # This is intentional: the TSP solver needs relative leg costs to find a
+        # geographically efficient starting order. Load-aware costs are applied
+        # later in RouteOptimizer._route_cost during the SA refinement step.
         w = vehicle_weight_kg
         fuel = [[0.0] * n for _ in range(n)]
         c = self._select_betas(vehicle_weight_kg)
@@ -185,6 +200,9 @@ class MatrixBuilder:
                     + c['Elev_x_Weight']     * (e * w)
                     + c['Dist_x_Speed2']     * (d * s * s)
                 )
+                # fuel_correction converts raw model output to liters for the given fuel type.
+                # Note: RouteOptimizer._route_cost does NOT apply this factor —
+                # app.py multiplies the cost output by fuel_correction externally.
                 fuel[i][j] = max(0.0, raw * fuel_correction)
 
         model_r2 = (
@@ -244,7 +262,6 @@ class MatrixBuilder:
                 fh, indent=2
             )
 
-        # Per-stop pickup weights (load-dependent VRP input for SA)
         if stop_weights is not None:
             total_pickup = sum(stop_weights.values())
             weights_out = {
