@@ -1,0 +1,56 @@
+{
+  "initial_route": {
+    "route": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7
+    ],
+    "route_names": [
+      "Ithaca North Depot",
+      "Lansing High School",
+      "Groton Elementary",
+      "Dryden Elementary School",
+      "Etna Community Hub",
+      "Varna Road Stop",
+      "Ellis Hollow Community",
+      "East Ithaca Recreation Center"
+    ],
+    "distance_km": 65.5889,
+    "fuel_cost": 47.099706
+  },
+  "optimal_route": {
+    "route": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7
+    ],
+    "route_names": [
+      "Ithaca North Depot",
+      "Lansing High School",
+      "Groton Elementary",
+      "Dryden Elementary School",
+      "Etna Community Hub",
+      "Varna Road Stop",
+      "Ellis Hollow Community",
+      "East Ithaca Recreation Center"
+    ],
+    "distance_km": 65.5889,
+    "fuel_cost": 47.099706
+  },
+  "notes": {
+    "optimization_savings_pct": "0.0%",
+    "description": "8-stop north Tompkins; Dryden (stop 3, 650 kg) is heaviest; multiple medium-weight stops give complex landscape",
+    "method": "brute-force enumeration of all middle-stop permutations",
+    "betas_bucket": "5k_10k (vehicle 9000 kg)"
+  }
+}

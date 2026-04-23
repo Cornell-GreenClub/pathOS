@@ -1,0 +1,44 @@
+{
+  "initial_route": {
+    "route": [
+      0,
+      1,
+      2,
+      3,
+      4
+    ],
+    "route_names": [
+      "Ithaca Warehouse Depot",
+      "Cornell Ag Quad Pickup",
+      "Ithaca High School Stop",
+      "Boynton Middle School",
+      "Southwest Ithaca Terminal"
+    ],
+    "distance_km": 20.6606,
+    "fuel_cost": 16.60421
+  },
+  "optimal_route": {
+    "route": [
+      0,
+      3,
+      1,
+      2,
+      4
+    ],
+    "route_names": [
+      "Ithaca Warehouse Depot",
+      "Boynton Middle School",
+      "Cornell Ag Quad Pickup",
+      "Ithaca High School Stop",
+      "Southwest Ithaca Terminal"
+    ],
+    "distance_km": 14.2691,
+    "fuel_cost": 12.049823
+  },
+  "notes": {
+    "optimization_savings_pct": "27.4%",
+    "description": "5-stop weight-dominated: stop 1 = 1200 kg (very heavy); visiting lightest stop first saves carrying 1200 kg over extra legs",
+    "method": "brute-force enumeration of all middle-stop permutations",
+    "betas_bucket": "5k_10k (vehicle 9000 kg)"
+  }
+}

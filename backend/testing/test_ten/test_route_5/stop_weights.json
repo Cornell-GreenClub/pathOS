@@ -1,0 +1,27 @@
+{
+  "by_index": {
+    "0": 0.0,
+    "1": 900.0,
+    "2": 550.0,
+    "3": 350.0,
+    "4": 750.0,
+    "5": 200.0,
+    "6": 450.0,
+    "7": 300.0,
+    "8": 0.0
+  },
+  "by_name": {
+    "Ithaca Commons Depot": 0.0,
+    "Caroline Elementary School": 900.0,
+    "Brooktondale Community Hub": 550.0,
+    "Slaterville Springs Village": 350.0,
+    "Besemer Area Pickup": 750.0,
+    "South Danby Community Stop": 200.0,
+    "Danby Community Center": 450.0,
+    "Spencer Village Hub": 300.0,
+    "Newfield Transfer Station": 0.0
+  },
+  "total_pickup_kg": 3500.0,
+  "base_vehicle_kg": 9000.0,
+  "max_loaded_kg": 12500.0
+}

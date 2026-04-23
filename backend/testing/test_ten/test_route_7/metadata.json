@@ -1,0 +1,18 @@
+{
+  "run_id": "test_route_7",
+  "n_stops": 6,
+  "vehicle_weight_kg": 9000.0,
+  "fuel_type": "diesel",
+  "fuel_correction": 0.65,
+  "timestamp": "2026-04-21T00:00:00.000000Z",
+  "labels": [
+    "Ithaca Commons Bus Terminal",
+    "Fall Creek Neighborhood Hub",
+    "Collegetown Stop",
+    "Belle Sherman Elementary",
+    "Southside Community Center",
+    "Cayuga Street Terminal"
+  ],
+  "total_pickup_kg": 1330.0,
+  "max_loaded_kg": 10330.0
+}

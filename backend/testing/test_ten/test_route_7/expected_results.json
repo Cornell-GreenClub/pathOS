@@ -1,0 +1,48 @@
+{
+  "initial_route": {
+    "route": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
+    "route_names": [
+      "Ithaca Commons Bus Terminal",
+      "Fall Creek Neighborhood Hub",
+      "Collegetown Stop",
+      "Belle Sherman Elementary",
+      "Southside Community Center",
+      "Cayuga Street Terminal"
+    ],
+    "distance_km": 12.0389,
+    "fuel_cost": 9.799717
+  },
+  "optimal_route": {
+    "route": [
+      0,
+      4,
+      3,
+      2,
+      1,
+      5
+    ],
+    "route_names": [
+      "Ithaca Commons Bus Terminal",
+      "Southside Community Center",
+      "Belle Sherman Elementary",
+      "Collegetown Stop",
+      "Fall Creek Neighborhood Hub",
+      "Cayuga Street Terminal"
+    ],
+    "distance_km": 11.8348,
+    "fuel_cost": 9.697911
+  },
+  "notes": {
+    "optimization_savings_pct": "1.0%",
+    "description": "6-stop compact urban route; all stops within 3 km; stop 2 (480 kg) is heaviest and mid-route in naive order",
+    "method": "brute-force enumeration of all middle-stop permutations",
+    "betas_bucket": "5k_10k (vehicle 9000 kg)"
+  }
+}

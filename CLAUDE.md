@@ -72,3 +72,14 @@ Paths are now relative — no hardcoded user paths.
 ## Changes Log
 - **April 2026**: Wired ML pipeline into backend — `MatrixBuilder` now loads trained `.joblib` model instead of using hardcoded coefficients. Model metadata exposed in API response and frontend AnalyticsPanel. Fixed hardcoded `/Users/fli6/...` paths in `linear_regression.py`. Added `scikit-learn` and `joblib` to `requirements.txt`.
 - **April 2026**: AnalyticsPanel improvements — fixed misleading fuel bar (now shows original vs optimized side-by-side), added Impact Equivalents section (trees, car km, cost saved, L/100km), added "Open in Google Maps" button, improved export JSON (now includes full ordered stop list with coords/weights and Google Maps URL). Restored maintainOrder checkbox. Replaced alert() with inline error banner. Added elapsed time counter during loading.
+- **April 2026**: MapView UI overhaul (10 changes):
+  1. Analytics panel open by default on map view load
+  2. Back button is now arrow icon only (no text)
+  3. Analytics/Stops buttons removed from top nav; replaced with floating vertical icon stack to the left of the open panel (green=active, white=inactive)
+  4. Stops panel widened to w-96 (384px) to match analytics panel
+  5. Stops panel always shows weight ("0 kg pickup" in gray, positive weights in green)
+  6. Map markers replaced with Leaflet DivIcon showing S/number/E labels (teardrop shape)
+  7. Hovering a stop row in Stops panel highlights its map pin (enlarges + outline ring)
+  8. Imperial units toggle in AnalyticsPanel header (km/L ↔ mi/gal); applies to all metric displays including top nav pills
+  9. Impact Equivalents card now has 3 tabs: Original (route cost), Optimized (savings), Per Year (savings × 260 working days)
+  10. Original route overlay: backend returns `originalRouteGeometry`, frontend shows dashed red polyline toggle ("Show original" button in nav); legend updates accordingly

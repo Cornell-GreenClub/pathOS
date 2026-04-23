@@ -1,0 +1,25 @@
+{
+  "by_index": {
+    "0": 0.0,
+    "1": 420.0,
+    "2": 380.0,
+    "3": 650.0,
+    "4": 280.0,
+    "5": 310.0,
+    "6": 490.0,
+    "7": 0.0
+  },
+  "by_name": {
+    "Ithaca North Depot": 0.0,
+    "Lansing High School": 420.0,
+    "Groton Elementary": 380.0,
+    "Dryden Elementary School": 650.0,
+    "Etna Community Hub": 280.0,
+    "Varna Road Stop": 310.0,
+    "Ellis Hollow Community": 490.0,
+    "East Ithaca Recreation Center": 0.0
+  },
+  "total_pickup_kg": 2530.0,
+  "base_vehicle_kg": 9000.0,
+  "max_loaded_kg": 11530.0
+}

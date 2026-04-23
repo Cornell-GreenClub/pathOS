@@ -1,0 +1,32 @@
+{
+  "initial_route": {
+    "route": [0, 1, 2, 3, 4],
+    "route_names": [
+      "Northeast Ithaca Community Center",
+      "Cayuga Heights Elementary",
+      "Forest Home Drive Community Hub",
+      "Cornell Heights Neighborhood Stop",
+      "Warren Road Distribution Center"
+    ],
+    "distance_km": 10.6152,
+    "fuel_cost": 8.267659
+  },
+  "optimal_route": {
+    "route": [0, 2, 3, 1, 4],
+    "route_names": [
+      "Northeast Ithaca Community Center",
+      "Forest Home Drive Community Hub",
+      "Cornell Heights Neighborhood Stop",
+      "Cayuga Heights Elementary",
+      "Warren Road Distribution Center"
+    ],
+    "distance_km": 7.7432,
+    "fuel_cost": 6.738711
+  },
+  "notes": {
+    "optimization_savings_pct": "18.5%",
+    "description": "5-stop north Ithaca; heaviest pickup at stop 1 in naive order; weight ordering yields savings",
+    "method": "brute-force enumeration of all middle-stop permutations",
+    "betas_bucket": "5k_10k (vehicle 9000 kg)"
+  }
+}

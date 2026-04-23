@@ -1,0 +1,19 @@
+{
+  "run_id": "test_route_3",
+  "n_stops": 7,
+  "vehicle_weight_kg": 9000.0,
+  "fuel_type": "diesel",
+  "fuel_correction": 0.65,
+  "timestamp": "2026-04-21T00:00:00.000000Z",
+  "labels": [
+    "Cayuga Lake Marina Depot",
+    "Taughannock Falls State Park Hub",
+    "Trumansburg Community Center",
+    "Cass Park Recreation Center",
+    "Stewart Park Community Hub",
+    "North Cayuga Street Stop",
+    "Cayuga Medical Center"
+  ],
+  "total_pickup_kg": 1540.0,
+  "max_loaded_kg": 10540.0
+}

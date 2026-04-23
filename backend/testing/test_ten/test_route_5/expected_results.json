@@ -1,0 +1,40 @@
+{
+  "initial_route": {
+    "route": [0, 1, 2, 3, 4, 5, 6, 7, 8],
+    "route_names": [
+      "Ithaca Commons Depot",
+      "Caroline Elementary School",
+      "Brooktondale Community Hub",
+      "Slaterville Springs Village",
+      "Besemer Area Pickup",
+      "South Danby Community Stop",
+      "Danby Community Center",
+      "Spencer Village Hub",
+      "Newfield Transfer Station"
+    ],
+    "distance_km": 94.0071,
+    "fuel_cost": 76.56713
+  },
+  "optimal_route": {
+    "route": [0, 3, 2, 1, 4, 7, 5, 6, 8],
+    "route_names": [
+      "Ithaca Commons Depot",
+      "Slaterville Springs Village",
+      "Brooktondale Community Hub",
+      "Caroline Elementary School",
+      "Besemer Area Pickup",
+      "Spencer Village Hub",
+      "South Danby Community Stop",
+      "Danby Community Center",
+      "Newfield Transfer Station"
+    ],
+    "distance_km": 79.5306,
+    "fuel_cost": 64.704542
+  },
+  "notes": {
+    "optimization_savings_pct": "15.5%",
+    "description": "9-stop south Ithaca/Caroline; large distances + steep terrain; sequential order is highly suboptimal",
+    "method": "brute-force enumeration of all middle-stop permutations",
+    "betas_bucket": "5k_10k (vehicle 9000 kg)"
+  }
+}

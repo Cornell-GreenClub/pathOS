@@ -1,0 +1,17 @@
+{
+  "run_id": "test_route_1",
+  "n_stops": 5,
+  "vehicle_weight_kg": 9000.0,
+  "fuel_type": "diesel",
+  "fuel_correction": 0.65,
+  "timestamp": "2026-04-21T00:00:00.000000Z",
+  "labels": [
+    "Northeast Ithaca Community Center",
+    "Cayuga Heights Elementary",
+    "Forest Home Drive Community Hub",
+    "Cornell Heights Neighborhood Stop",
+    "Warren Road Distribution Center"
+  ],
+  "total_pickup_kg": 900.0,
+  "max_loaded_kg": 9900.0
+}

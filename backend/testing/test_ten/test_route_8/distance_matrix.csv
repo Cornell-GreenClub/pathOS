@@ -1,0 +1,8 @@
+,Ithaca Beer Co Depot,West Hill Community School,Enfield Center Pickup,Mecklenburg Road Hub,Halseyville Village Stop,Watkins Glen Junction,Odessa Village Hub
+Ithaca Beer Co Depot,0.0,4.274794,10.29046,12.262948,15.584904,41.900767,34.945332
+West Hill Community School,4.274794,0.0,7.898789,8.087279,11.329076,38.657042,32.449193
+Enfield Center Pickup,10.29046,7.898789,0.0,7.109139,10.293981,31.703313,24.734006
+Mecklenburg Road Hub,12.262948,8.087279,7.109139,0.0,3.568259,31.695798,26.988638
+Halseyville Village Stop,15.584904,11.329076,10.293981,3.568259,0.0,30.282956,26.79664
+Watkins Glen Junction,41.900767,38.657042,31.703313,31.695798,30.282956,0.0,10.942951
+Odessa Village Hub,34.945332,32.449193,24.734006,26.988638,26.79664,10.942951,0.0

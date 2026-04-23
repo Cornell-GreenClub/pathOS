@@ -1,0 +1,52 @@
+{
+  "initial_route": {
+    "route": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6
+    ],
+    "route_names": [
+      "Ithaca Beer Co Depot",
+      "West Hill Community School",
+      "Enfield Center Pickup",
+      "Mecklenburg Road Hub",
+      "Halseyville Village Stop",
+      "Watkins Glen Junction",
+      "Odessa Village Hub"
+    ],
+    "distance_km": 64.0769,
+    "fuel_cost": 47.552516
+  },
+  "optimal_route": {
+    "route": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6
+    ],
+    "route_names": [
+      "Ithaca Beer Co Depot",
+      "West Hill Community School",
+      "Enfield Center Pickup",
+      "Mecklenburg Road Hub",
+      "Halseyville Village Stop",
+      "Watkins Glen Junction",
+      "Odessa Village Hub"
+    ],
+    "distance_km": 64.0769,
+    "fuel_cost": 47.552516
+  },
+  "notes": {
+    "optimization_savings_pct": "0.0%",
+    "description": "7-stop west hills into Schuyler County; large elevation changes; Watkins Glen (stop 5) has moderate weight but big elev gain",
+    "method": "brute-force enumeration of all middle-stop permutations",
+    "betas_bucket": "5k_10k (vehicle 9000 kg)"
+  }
+}

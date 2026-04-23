@@ -1,0 +1,19 @@
+{
+  "by_index": {
+    "0": 0.0,
+    "1": 450.0,
+    "2": 180.0,
+    "3": 270.0,
+    "4": 0.0
+  },
+  "by_name": {
+    "Northeast Ithaca Community Center": 0.0,
+    "Cayuga Heights Elementary": 450.0,
+    "Forest Home Drive Community Hub": 180.0,
+    "Cornell Heights Neighborhood Stop": 270.0,
+    "Warren Road Distribution Center": 0.0
+  },
+  "total_pickup_kg": 900.0,
+  "base_vehicle_kg": 9000.0,
+  "max_loaded_kg": 9900.0
+}

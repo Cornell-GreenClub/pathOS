@@ -1,0 +1,19 @@
+{
+  "run_id": "test_route_8",
+  "n_stops": 7,
+  "vehicle_weight_kg": 9000.0,
+  "fuel_type": "diesel",
+  "fuel_correction": 0.65,
+  "timestamp": "2026-04-21T00:00:00.000000Z",
+  "labels": [
+    "Ithaca Beer Co Depot",
+    "West Hill Community School",
+    "Enfield Center Pickup",
+    "Mecklenburg Road Hub",
+    "Halseyville Village Stop",
+    "Watkins Glen Junction",
+    "Odessa Village Hub"
+  ],
+  "total_pickup_kg": 2100.0,
+  "max_loaded_kg": 11100.0
+}

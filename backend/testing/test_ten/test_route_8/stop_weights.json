@@ -1,0 +1,23 @@
+{
+  "by_index": {
+    "0": 0.0,
+    "1": 600.0,
+    "2": 250.0,
+    "3": 400.0,
+    "4": 500.0,
+    "5": 350.0,
+    "6": 0.0
+  },
+  "by_name": {
+    "Ithaca Beer Co Depot": 0.0,
+    "West Hill Community School": 600.0,
+    "Enfield Center Pickup": 250.0,
+    "Mecklenburg Road Hub": 400.0,
+    "Halseyville Village Stop": 500.0,
+    "Watkins Glen Junction": 350.0,
+    "Odessa Village Hub": 0.0
+  },
+  "total_pickup_kg": 2100.0,
+  "base_vehicle_kg": 9000.0,
+  "max_loaded_kg": 11100.0
+}

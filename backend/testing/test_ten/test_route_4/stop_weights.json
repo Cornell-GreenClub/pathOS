@@ -1,0 +1,25 @@
+{
+  "by_index": {
+    "0": 0.0,
+    "1": 700.0,
+    "2": 500.0,
+    "3": 300.0,
+    "4": 450.0,
+    "5": 250.0,
+    "6": 600.0,
+    "7": 0.0
+  },
+  "by_name": {
+    "East Hill Plaza Depot": 0.0,
+    "Cornell University Central": 700.0,
+    "Dryden Community Center": 500.0,
+    "Freeville Village Hall": 300.0,
+    "McLean Hamlet Hub": 450.0,
+    "Groton Central School": 250.0,
+    "Lansing Community Center": 600.0,
+    "Tompkins County Airport": 0.0
+  },
+  "total_pickup_kg": 2800.0,
+  "base_vehicle_kg": 9000.0,
+  "max_loaded_kg": 11800.0
+}

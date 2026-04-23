@@ -1,0 +1,21 @@
+{
+  "by_index": {
+    "0": 0.0,
+    "1": 800.0,
+    "2": 600.0,
+    "3": 250.0,
+    "4": 150.0,
+    "5": 0.0
+  },
+  "by_name": {
+    "West Hill Depot": 0.0,
+    "South Hill Elementary School": 800.0,
+    "Newfield Community Center": 600.0,
+    "Downtown Ithaca Hub": 250.0,
+    "West End Community Center": 150.0,
+    "Enfield Elementary School": 0.0
+  },
+  "total_pickup_kg": 1800.0,
+  "base_vehicle_kg": 9000.0,
+  "max_loaded_kg": 10800.0
+}

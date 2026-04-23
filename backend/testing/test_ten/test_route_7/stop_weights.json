@@ -1,0 +1,21 @@
+{
+  "by_index": {
+    "0": 0.0,
+    "1": 280.0,
+    "2": 480.0,
+    "3": 350.0,
+    "4": 220.0,
+    "5": 0.0
+  },
+  "by_name": {
+    "Ithaca Commons Bus Terminal": 0.0,
+    "Fall Creek Neighborhood Hub": 280.0,
+    "Collegetown Stop": 480.0,
+    "Belle Sherman Elementary": 350.0,
+    "Southside Community Center": 220.0,
+    "Cayuga Street Terminal": 0.0
+  },
+  "total_pickup_kg": 1330.0,
+  "base_vehicle_kg": 9000.0,
+  "max_loaded_kg": 10330.0
+}
