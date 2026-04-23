@@ -1,3 +1,21 @@
+/**
+ * MapView — full-screen interactive map for the pathOS route optimizer.
+ *
+ * Component tree:
+ *   MapView
+ *   ├── MapContainer (Leaflet)
+ *   │   ├── MapController      – headless: auto-fits bounds when route changes
+ *   │   ├── Marker × N         – custom DivIcon pins with S/number/E labels
+ *   │   ├── Polyline           – optimized route (blue, solid)
+ *   │   ├── Polyline?          – original route overlay (red, dashed)
+ *   │   └── ZoomControls       – custom +/− buttons (Leaflet default disabled)
+ *   ├── Top nav bar            – back arrow + metric pills (shift left when panel open)
+ *   ├── Icon button stack      – analytics / stops toggles, floats left of open panel
+ *   ├── AnalyticsPanel         – slide-in right drawer: metrics, equivalents, export
+ *   ├── Stops panel            – slide-in right drawer: stop list, original route toggle
+ *   └── Legend                 – color key, adds dashed-red entry when overlay active
+ */
+
 import React, { useState, useRef } from 'react';
 import {
   MapContainer,
@@ -11,7 +29,11 @@ import {
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 
-// Unit conversion helpers (imperial toggle)
+// ─── Unit conversion helpers ───────────────────────────────────────────────
+// All internal calculations stay in SI (km, L, kg). These helpers convert
+// to imperial only at display time so toggling the switch is a pure UI change.
+//
+//   toEff: L/100km → MPG via the identity  MPG = 235.214 / (L/100km)
 const toDistance = (km: number | null, imp: boolean) =>
   km == null ? null : imp ? +(km * 0.621371).toFixed(2) : km;
 const toFuel = (L_: number | null, imp: boolean) =>
@@ -23,7 +45,8 @@ const toEff = (fuelL: number, distKm: number, imp: boolean) =>
     ? +((235.214 / ((fuelL / distKm) * 100)).toFixed(1))
     : +((fuelL / distKm) * 100).toFixed(1);
 
-// Fix for default marker icons in leaflet
+// Leaflet's default icon resolution breaks in Next.js because webpack renames
+// asset files. Pointing to the CDN copies avoids the missing-icon bug.
 L.Icon.Default.mergeOptions({
   iconRetinaUrl:
     'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.3.1/images/marker-icon-2x.png',
@@ -31,7 +54,13 @@ L.Icon.Default.mergeOptions({
     'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.3.1/images/marker-shadow.png',
 });
 
-// Custom DivIcon with stop number label and hover highlighting
+// ─── createMarkerIcon ──────────────────────────────────────────────────────
+// Returns a Leaflet DivIcon — an HTML-rendered pin instead of an image file.
+// This lets us embed the stop label (S / 1 / 2 / … / E) directly in the marker
+// and enlarge + ring it on hover without a separate image asset per state.
+//
+// Shape: teardrop achieved by rotating a circle with one flattened corner
+// (border-radius: 50% 50% 50% 0) by -45°, then counter-rotating the label span.
 const createMarkerIcon = (index: number, total: number, isHovered: boolean) => {
   const isStart = index === 0;
   const isEnd = index === total - 1;
@@ -42,11 +71,15 @@ const createMarkerIcon = (index: number, total: number, isHovered: boolean) => {
     html: `<div style="width:${size}px;height:${size}px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);background:${color};display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,0.3);border:2px solid white;${isHovered ? `outline:3px solid ${color};outline-offset:2px;` : ''}"><span style="transform:rotate(45deg);color:white;font-weight:bold;font-size:${isHovered ? 13 : 11}px;font-family:sans-serif;">${label}</span></div>`,
     className: '',
     iconSize: [size, size],
-    iconAnchor: [size / 2, size],
+    iconAnchor: [size / 2, size],  // anchor at the bottom tip of the teardrop
     popupAnchor: [0, -size],
   });
 };
 
+// ─── MapController ─────────────────────────────────────────────────────────
+// Headless component (renders null) that uses the useMap hook to pan/zoom the
+// map whenever the route or start/end coords change. Must live inside
+// <MapContainer> to access the Leaflet map instance via context.
 const MapController = ({ startCoords, endCoords, route }: any) => {
   const map = useMap();
   React.useEffect(() => {
@@ -65,6 +98,9 @@ const MapController = ({ startCoords, endCoords, route }: any) => {
   return null;
 };
 
+// ─── InfoTip ───────────────────────────────────────────────────────────────
+// Small ⓘ badge that shows a tooltip bubble on hover/focus. Used inline
+// inside AnalyticsPanel rows to explain how each equivalent is calculated.
 const InfoTip = ({ text }: { text: string }) => {
   const [visible, setVisible] = useState(false);
   const ref = useRef<HTMLSpanElement>(null);
@@ -84,6 +120,7 @@ const InfoTip = ({ text }: { text: string }) => {
       {visible && (
         <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 w-52 bg-gray-900 text-white text-[11px] leading-snug rounded-lg px-3 py-2 z-50 shadow-lg pointer-events-none">
           {text}
+          {/* downward caret */}
           <span className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900" />
         </span>
       )}
@@ -91,6 +128,9 @@ const InfoTip = ({ text }: { text: string }) => {
   );
 };
 
+// ─── Legend ────────────────────────────────────────────────────────────────
+// Static color key in the bottom-right corner. The dashed-red "Original Route"
+// row is only rendered when the overlay is active so the legend stays minimal.
 const Legend = ({ showOriginalRoute }: { showOriginalRoute: boolean }) => (
   <div className="absolute bottom-5 right-5 bg-white p-4 rounded-lg shadow-lg z-[1000] text-sm text-black">
     <h4 className="font-semibold mb-2">Legend</h4>
@@ -123,6 +163,10 @@ const Legend = ({ showOriginalRoute }: { showOriginalRoute: boolean }) => (
   </div>
 );
 
+// ─── ZoomControls ──────────────────────────────────────────────────────────
+// Custom +/− zoom buttons positioned over the map. Leaflet's built-in
+// zoomControl is disabled on <MapContainer> so these replace it with styling
+// that matches the rest of the UI.
 const ZoomControls = () => {
   const map = useMap();
   return (
@@ -149,10 +193,34 @@ const ZoomControls = () => {
   );
 };
 
+// ─── AnalyticsPanel ────────────────────────────────────────────────────────
+// Right-side slide-in drawer (w-96, z-1001) showing route analytics returned
+// by the backend physics model.
+//
+// Props:
+//   isOpen      – controls translate-x slide animation
+//   onClose     – callback to collapse the panel
+//   metrics     – RouteMetrics from backend (optimized + original values)
+//   formData    – full form submission (stops array used for export / Google Maps)
+//   imperial    – unit system flag owned by MapView, shared down to keep pills in sync
+//   setImperial – setter passed down so the toggle inside this panel updates MapView state
+//
+// Sections (top to bottom):
+//   Header      – title + km/mi toggle switch + close button
+//   Savings     – headline card: fuel/CO₂/distance saved + visual fuel bar
+//   Distance    – original vs optimized side-by-side
+//   Duration    – with ↑/↓ delta indicator
+//   Fuel        – with ↓ delta note
+//   CO₂         – original vs optimized
+//   Equivalents – 3-tab card: Original / Optimized / Per Year (×260 working days)
+//   Google Maps – deep-link button using the optimized stop order
+//   Export      – dropdown: JSON / CSV / PDF (always in metric regardless of toggle)
 const AnalyticsPanel = ({ isOpen, onClose, metrics, formData, imperial, setImperial }: any) => {
   const [exportOpen, setExportOpen] = useState(false);
+  // Default to "Optimized" tab — most relevant for a first-time viewer.
   const [equivTab, setEquivTab] = useState<'original' | 'optimized' | 'yearly'>('optimized');
 
+  // Derived unit labels — switch together with imperial flag
   const distUnit   = imperial ? 'mi'  : 'km';
   const fuelUnit   = imperial ? 'gal' : 'L';
   const weightUnit = imperial ? 'lbs' : 'kg';
@@ -161,7 +229,8 @@ const AnalyticsPanel = ({ isOpen, onClose, metrics, formData, imperial, setImper
   const hasData = metrics && (metrics.distanceKm != null || metrics.fuelLiters != null);
   const hasOriginal = metrics && metrics.originalDistanceKm != null;
 
-  // Raw metric savings (always in SI for computation)
+  // Savings are always computed in SI so the math stays correct regardless of
+  // which unit system is displayed. toFuel/toWeight/toDistance convert at render.
   const fuelSavedRaw =
     hasOriginal && metrics.fuelLiters != null
       ? Math.round((metrics.originalFuelLiters - metrics.fuelLiters) * 100) / 100
@@ -175,21 +244,22 @@ const AnalyticsPanel = ({ isOpen, onClose, metrics, formData, imperial, setImper
       ? Math.round((metrics.originalDistanceKm - metrics.distanceKm) * 100) / 100
       : null;
 
-  // Converted display values
-  const fuelSaved     = toFuel(fuelSavedRaw, imperial);
-  const co2Saved      = toWeight(co2SavedRaw, imperial);
-  const distanceSaved = toDistance(distanceSavedRaw, imperial);
-  const dispDistKm    = toDistance(metrics?.distanceKm, imperial);
-  const dispOrigDistKm= toDistance(metrics?.originalDistanceKm, imperial);
-  const dispFuelL     = toFuel(metrics?.fuelLiters, imperial);
-  const dispOrigFuelL = toFuel(metrics?.originalFuelLiters, imperial);
-  const dispCo2Kg     = toWeight(metrics?.co2Kg, imperial);
-  const dispOrigCo2Kg = toWeight(metrics?.originalCo2Kg, imperial);
+  // Display values — converted to the current unit system
+  const fuelSaved      = toFuel(fuelSavedRaw, imperial);
+  const co2Saved       = toWeight(co2SavedRaw, imperial);
+  const distanceSaved  = toDistance(distanceSavedRaw, imperial);
+  const dispDistKm     = toDistance(metrics?.distanceKm, imperial);
+  const dispOrigDistKm = toDistance(metrics?.originalDistanceKm, imperial);
+  const dispFuelL      = toFuel(metrics?.fuelLiters, imperial);
+  const dispOrigFuelL  = toFuel(metrics?.originalFuelLiters, imperial);
+  const dispCo2Kg      = toWeight(metrics?.co2Kg, imperial);
+  const dispOrigCo2Kg  = toWeight(metrics?.originalCo2Kg, imperial);
 
   const fuelSavedPct =
     hasOriginal && metrics.originalFuelLiters > 0
       ? (((metrics.originalFuelLiters - metrics.fuelLiters) / metrics.originalFuelLiters) * 100).toFixed(1)
       : null;
+  // Positive = optimized route took longer; negative = faster
   const timeDeltaMin =
     hasOriginal && metrics.durationMin != null && metrics.originalDurationMin != null
       ? Math.round((metrics.durationMin - metrics.originalDurationMin) * 10) / 10
@@ -201,6 +271,8 @@ const AnalyticsPanel = ({ isOpen, onClose, metrics, formData, imperial, setImper
     return `${Math.round(min)}m`;
   };
 
+  // Builds a Google Maps directions URL for the ordered stop list.
+  // First stop = origin, last = destination, middle stops = waypoints.
   const buildGoogleMapsUrl = (stops: any[]) => {
     if (!stops || stops.length < 2) return null;
     const origin = `${stops[0].coords.lat},${stops[0].coords.lng}`;
@@ -209,6 +281,10 @@ const AnalyticsPanel = ({ isOpen, onClose, metrics, formData, imperial, setImper
     const waypointStr = mids.map((s: any) => `${s.coords.lat},${s.coords.lng}`).join('|');
     return `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${dest}${waypointStr ? `&waypoints=${encodeURIComponent(waypointStr)}` : ''}&travelmode=driving`;
   };
+
+  // ── Export handlers ──────────────────────────────────────────────────────
+  // Exports always use SI (metric) units regardless of the imperial toggle,
+  // since downstream tools (spreadsheets, APIs) expect consistent units.
 
   const handleExport = () => {
     const googleMapsUrl = buildGoogleMapsUrl(formData.stops);
@@ -318,6 +394,8 @@ const AnalyticsPanel = ({ isOpen, onClose, metrics, formData, imperial, setImper
         </tbody>
       </table>`
       : '';
+    // Opens a print-ready HTML page in a new tab; browser print dialog fires after 300ms
+    // to give the page time to fully render before the dialog interrupts layout.
     const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Route Report - ${vehicle}</title>
       <style>body{font-family:sans-serif;max-width:720px;margin:40px auto;color:#111;} h1{color:#034626;} table{width:100%;border-collapse:collapse;} @media print{body{margin:20px;}}</style>
       </head><body>
@@ -341,11 +419,13 @@ const AnalyticsPanel = ({ isOpen, onClose, metrics, formData, imperial, setImper
     <div
       className={`fixed right-0 top-0 h-full w-96 bg-white shadow-lg transform transition-transform duration-300 ease-in-out z-[1001] flex flex-col ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}
     >
-      {/* Header */}
+      {/* Header: title + unit toggle + close */}
       <div className="p-4 border-b border-gray-200">
         <div className="flex justify-between items-center">
           <h2 className="text-xl font-semibold text-black">Route Analytics</h2>
           <div className="flex items-center gap-2">
+            {/* km/mi slider toggle — imperial state lives in MapView so the
+                metric pills in the top nav bar update at the same time */}
             <div className="flex items-center gap-1.5">
               <span className="text-xs text-gray-400">km</span>
               <button
@@ -368,13 +448,14 @@ const AnalyticsPanel = ({ isOpen, onClose, metrics, formData, imperial, setImper
         </div>
       </div>
 
-      {/* Scrollable Content */}
+      {/* Scrollable body */}
       <div className="flex-1 overflow-y-auto p-4">
         {!hasData ? (
           <p className="text-gray-500 text-sm">No analytics data available.</p>
         ) : (
           <div className="space-y-5 text-black">
-            {/* Savings Summary */}
+
+            {/* ── Savings summary card ── */}
             {hasOriginal && fuelSaved != null && (
               <div className="bg-gradient-to-br from-green-50 to-emerald-50 p-5 rounded-xl border border-green-100">
                 <h3 className="text-lg font-semibold text-green-800 mb-3">Optimization Savings</h3>
@@ -395,6 +476,9 @@ const AnalyticsPanel = ({ isOpen, onClose, metrics, formData, imperial, setImper
                     <p className="text-xl font-bold text-green-700">{distanceSaved} {distUnit}</p>
                   </div>
                 )}
+                {/* Side-by-side fuel bar: original is always full-width (reference),
+                    optimized bar width is proportional to original so the visual
+                    ratio is immediately apparent */}
                 {fuelSavedPct && metrics.originalFuelLiters > 0 && (
                   <div className="mt-3">
                     <div className="flex justify-between text-xs text-green-700 mb-2">
@@ -425,7 +509,7 @@ const AnalyticsPanel = ({ isOpen, onClose, metrics, formData, imperial, setImper
               </div>
             )}
 
-            {/* Distance */}
+            {/* ── Distance ── */}
             <div className="bg-gray-50 p-4 rounded-lg">
               <h4 className="font-semibold mb-3">Distance</h4>
               <div className="grid grid-cols-2 gap-4">
@@ -442,7 +526,7 @@ const AnalyticsPanel = ({ isOpen, onClose, metrics, formData, imperial, setImper
               </div>
             </div>
 
-            {/* Duration */}
+            {/* ── Duration ── */}
             <div className="bg-gray-50 p-4 rounded-lg">
               <h4 className="font-semibold mb-3">Duration</h4>
               <div className="grid grid-cols-2 gap-4">
@@ -455,6 +539,8 @@ const AnalyticsPanel = ({ isOpen, onClose, metrics, formData, imperial, setImper
                 <div>
                   <p className="text-xs text-[#034626]">Optimized</p>
                   <p className="text-lg font-medium text-[#034626]">{formatDuration(metrics.durationMin)}</p>
+                  {/* Blue delta — neutral color because time can go either way
+                      depending on route geometry vs fuel-cost trade-offs */}
                   {timeDeltaMin != null && timeDeltaMin !== 0 && (
                     <p className="text-xs mt-0.5 font-medium text-blue-600">
                       {timeDeltaMin < 0
@@ -469,7 +555,7 @@ const AnalyticsPanel = ({ isOpen, onClose, metrics, formData, imperial, setImper
               </div>
             </div>
 
-            {/* Fuel */}
+            {/* ── Fuel consumption ── */}
             {metrics.fuelLiters != null && (
               <div className="bg-gray-50 p-4 rounded-lg">
                 <h4 className="font-semibold mb-3">Fuel Consumption</h4>
@@ -496,7 +582,7 @@ const AnalyticsPanel = ({ isOpen, onClose, metrics, formData, imperial, setImper
               </div>
             )}
 
-            {/* CO2 */}
+            {/* ── CO₂ emissions ── */}
             {metrics.co2Kg != null && (
               <div className="bg-gray-50 p-4 rounded-lg">
                 <h4 className="font-semibold mb-3">CO₂ Emissions</h4>
@@ -515,11 +601,16 @@ const AnalyticsPanel = ({ isOpen, onClose, metrics, formData, imperial, setImper
               </div>
             )}
 
-            {/* Impact Equivalents — 3 tabs */}
+            {/* ── Impact Equivalents — 3-tab card ──────────────────────────
+                Converts raw fuel/CO₂ numbers into relatable real-world units.
+                Tabs:
+                  Original  – environmental cost of the unoptimized route
+                  Optimized – per-trip savings from running the optimized route
+                  Per Year  – savings × 260 working days (annualized projection)
+                All distance equivalents respect the imperial toggle via toDistance(). */}
             {(fuelSavedRaw != null || co2SavedRaw != null || hasOriginal) && (
               <div className="bg-blue-50 p-4 rounded-xl border border-blue-100">
                 <h3 className="text-sm font-semibold text-blue-800 mb-3">Impact Equivalents</h3>
-                {/* Tab bar */}
                 <div className="flex gap-1 mb-3">
                   {(['original', 'optimized', 'yearly'] as const).map((tab) => (
                     <button
@@ -537,6 +628,7 @@ const AnalyticsPanel = ({ isOpen, onClose, metrics, formData, imperial, setImper
                 </div>
 
                 <div className="space-y-2 text-sm">
+                  {/* Tab: Original — cost of the unoptimized route */}
                   {equivTab === 'original' && hasOriginal && (
                     <>
                       {metrics.originalCo2Kg != null && metrics.originalCo2Kg > 0 && (
@@ -578,6 +670,7 @@ const AnalyticsPanel = ({ isOpen, onClose, metrics, formData, imperial, setImper
                     </>
                   )}
 
+                  {/* Tab: Optimized — per-trip savings */}
                   {equivTab === 'optimized' && (
                     <>
                       {co2SavedRaw != null && co2SavedRaw > 0 && (
@@ -619,6 +712,7 @@ const AnalyticsPanel = ({ isOpen, onClose, metrics, formData, imperial, setImper
                     </>
                   )}
 
+                  {/* Tab: Per Year — annualized at 260 working days */}
                   {equivTab === 'yearly' && (
                     <>
                       {fuelSavedRaw != null && fuelSavedRaw > 0 ? (
@@ -658,7 +752,7 @@ const AnalyticsPanel = ({ isOpen, onClose, metrics, formData, imperial, setImper
               </div>
             )}
 
-            {/* Open in Google Maps */}
+            {/* ── Google Maps deep-link ── */}
             {formData.stops?.length >= 2 && (
               <button
                 onClick={() => {
@@ -671,7 +765,7 @@ const AnalyticsPanel = ({ isOpen, onClose, metrics, formData, imperial, setImper
               </button>
             )}
 
-            {/* Export */}
+            {/* ── Export dropdown ── */}
             <div className="relative">
               <button
                 onClick={() => setExportOpen((o) => !o)}
@@ -715,6 +809,25 @@ const AnalyticsPanel = ({ isOpen, onClose, metrics, formData, imperial, setImper
   );
 };
 
+// ─── MapView ───────────────────────────────────────────────────────────────
+// Root component for the map screen. Owns all panel and overlay state so the
+// icon button stack, analytics panel, stops panel, and metric pills all stay
+// in sync without prop-drilling through unrelated components.
+//
+// Props:
+//   formData      – optimized stops array + vehicle metadata (from page.tsx)
+//   route         – optimized route polyline [[lat,lng], …] from OSRM
+//   startCoords   – { lat, lng } of first stop (for initial map fit)
+//   endCoords     – { lat, lng } of last stop
+//   onBack        – callback to return to the route-input form
+//   metrics       – RouteMetrics (distanceKm, fuelLiters, co2Kg, original* variants, etc.)
+//   originalRoute – unoptimized route polyline [[lat,lng], …] from backend (optional)
+//   originalStops – stop array in original input order, saved before optimization (optional)
+//
+// Panel system:
+//   Only one panel (analytics or stops) can be open at a time. Opening one
+//   closes the other. The top nav bar and icon button stack both shift left
+//   by panelWidth (384px) via CSS transition so map content is never obscured.
 const MapView = ({
   formData,
   route,
@@ -725,14 +838,20 @@ const MapView = ({
   originalRoute,
   originalStops,
 }: any) => {
-  const [isAnalyticsPanelOpen, setIsAnalyticsPanelOpen] = useState(true);
+  const [isAnalyticsPanelOpen, setIsAnalyticsPanelOpen] = useState(true);  // open by default
   const [isStopsPanelOpen, setIsStopsPanelOpen] = useState(false);
+  // hoveredStopIndex: set by onMouseEnter on a stop row in the Stops panel;
+  // passed into createMarkerIcon via key trick to force Leaflet re-render.
   const [hoveredStopIndex, setHoveredStopIndex] = useState<number | null>(null);
+  // imperial lives here (not in AnalyticsPanel) so the metric pills in the
+  // top nav bar also convert when the toggle is flipped.
   const [imperial, setImperial] = useState(false);
+  // showOriginalRoute: toggles the dashed red Polyline overlay and switches
+  // the Stops panel list between optimized and original order.
   const [showOriginalRoute, setShowOriginalRoute] = useState(false);
 
   const panelOpen = isAnalyticsPanelOpen || isStopsPanelOpen;
-  const panelWidth = '384px';
+  const panelWidth = '384px';  // w-96 — both panels are the same width
 
   const distUnit = imperial ? 'mi' : 'km';
   const fuelUnit = imperial ? 'gal' : 'L';
@@ -743,7 +862,7 @@ const MapView = ({
         <MapContainer
           center={[20.5937, 78.9629]}
           zoom={5}
-          zoomControl={false}
+          zoomControl={false}  // disabled — custom ZoomControls renders instead
           style={{ width: '100%', height: '100%' }}
         >
           <TileLayer
@@ -752,7 +871,11 @@ const MapView = ({
           />
           <MapController startCoords={startCoords} endCoords={endCoords} route={route} />
 
-          {/* Stop markers with DivIcon labels and hover highlighting */}
+          {/* ── Stop markers ────────────────────────────────────────────────
+              key includes isHovered so React remounts the Marker (and thus
+              Leaflet re-creates the DivIcon) when hover state changes.
+              Without the key trick, Leaflet caches the icon and ignores
+              prop updates to the icon object. */}
           {formData.stops.map(
             (
               stop: { location: string; coords: { lat: number; lng: number }; weightKg?: number },
@@ -771,16 +894,19 @@ const MapView = ({
                   position={[stop.coords.lat, stop.coords.lng]}
                   icon={createMarkerIcon(index, total, isHovered)}
                 >
+                  {/* Tooltip: shows on hover over the pin itself */}
                   <Tooltip direction="top" offset={[0, -35]} opacity={0.95}>
                     <div className="text-center font-sans tracking-wide">
                       <div className="font-semibold text-gray-800">
                         {isStart ? 'Start' : isEnd ? 'End' : `Stop ${index}`}
                       </div>
+                      {/* Always show weight — green for non-zero, gray for 0 */}
                       <div className={`text-xs mt-0.5 ${weightValue > 0 ? 'text-[#034626] font-extrabold' : 'text-gray-400'}`}>
                         {weightValue} kg pickup
                       </div>
                     </div>
                   </Tooltip>
+                  {/* Popup: shows on click */}
                   <Popup>
                     <div className="font-sans w-56 -m-1">
                       <div className="flex items-center gap-2 mb-2 pb-2 border-b border-gray-100">
@@ -803,10 +929,10 @@ const MapView = ({
             }
           )}
 
-          {/* Optimized route polyline */}
+          {/* Optimized route — solid blue */}
           {route && <Polyline positions={route} color="blue" weight={4} />}
 
-          {/* Original route overlay (dashed red) */}
+          {/* Original route overlay — dashed red, only when toggled on */}
           {showOriginalRoute && originalRoute && originalRoute.length > 0 && (
             <Polyline positions={originalRoute} color="#ef4444" weight={3} dashArray="8,6" opacity={0.7} />
           )}
@@ -815,13 +941,14 @@ const MapView = ({
         </MapContainer>
       </div>
 
-      {/* Top navigation bar */}
+      {/* ── Top navigation bar ────────────────────────────────────────────
+          Shifts right edge left by panelWidth when a panel is open so the
+          metric pills don't overlap the panel. Transition matches panel animation. */}
       <div
         className="absolute top-0 p-4 z-[1000] flex justify-between items-start text-black transition-all duration-300 ease-in-out"
         style={{ left: 0, right: panelOpen ? panelWidth : '0px' }}
       >
         <div className="flex gap-2 items-center">
-          {/* Back button — arrow icon only */}
           <button
             onClick={onBack}
             className="bg-white rounded-lg px-3 py-2 shadow-lg hover:bg-gray-50 flex items-center"
@@ -833,7 +960,9 @@ const MapView = ({
           </button>
         </div>
 
-        {/* Route metrics pills */}
+        {/* ── Metric pills ─────────────────────────────────────────────────
+            Inline IIFE keeps the savings derivation scoped — avoids polluting
+            MapView's render scope with variables only used here. */}
         {metrics && (metrics.distanceKm != null || metrics.fuelLiters != null) && (() => {
           const fmtDur = (min: number) =>
             min >= 60
@@ -851,9 +980,9 @@ const MapView = ({
             metrics.originalFuelLiters != null && metrics.originalFuelLiters > 0 && fuelSavedRaw != null
               ? ((fuelSavedRaw / metrics.originalFuelLiters) * 100).toFixed(1)
               : null;
-          const dispDist = toDistance(metrics.distanceKm, imperial);
-          const dispFuel = toFuel(metrics.fuelLiters, imperial);
-          const dispCo2  = toWeight(metrics.co2Kg, imperial);
+          const dispDist      = toDistance(metrics.distanceKm, imperial);
+          const dispFuel      = toFuel(metrics.fuelLiters, imperial);
+          const dispCo2       = toWeight(metrics.co2Kg, imperial);
           const dispFuelSaved = toFuel(fuelSavedRaw, imperial);
           const dispCo2Saved  = toWeight(co2SavedRaw, imperial);
           return (
@@ -895,7 +1024,10 @@ const MapView = ({
         })()}
       </div>
 
-      {/* Floating icon button stack — sits to the left of whichever panel is open */}
+      {/* ── Floating icon button stack ────────────────────────────────────
+          Fixed, vertically centered, slides left with the panel via `right`
+          transition. Renders as pill-shaped tabs anchored to the panel edge.
+          Active panel button = dark green; inactive = white. */}
       <div
         className="fixed z-[1002] flex flex-col gap-2 transition-all duration-300 ease-in-out"
         style={{
@@ -904,7 +1036,6 @@ const MapView = ({
           transform: 'translateY(-50%)',
         }}
       >
-        {/* Analytics icon button */}
         <button
           onClick={() => {
             setIsAnalyticsPanelOpen((o) => !o);
@@ -914,13 +1045,10 @@ const MapView = ({
           aria-label="Analytics"
           title="Analytics"
         >
-          {/* Bar chart icon */}
           <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
           </svg>
         </button>
-
-        {/* Stops icon button */}
         <button
           onClick={() => {
             setIsStopsPanelOpen((o) => !o);
@@ -930,14 +1058,16 @@ const MapView = ({
           aria-label="Stops"
           title="Stops"
         >
-          {/* Ordered list icon */}
           <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
           </svg>
         </button>
       </div>
 
-      {/* Stops list panel */}
+      {/* ── Stops panel ───────────────────────────────────────────────────
+          Shows the optimized stop order by default. When the original route
+          overlay is toggled on, switches to showing originalStops (the input
+          order before optimization) and displays an explanatory label. */}
       <div
         className={`fixed right-0 top-0 h-full w-96 bg-white shadow-lg transform transition-transform duration-300 ease-in-out z-[1001] flex flex-col ${isStopsPanelOpen ? 'translate-x-0' : 'translate-x-full'}`}
       >
@@ -950,7 +1080,7 @@ const MapView = ({
           </button>
         </div>
 
-        {/* Original route toggle */}
+        {/* Original route toggle — only shown when backend provided originalRoute */}
         {originalRoute && originalRoute.length > 0 && originalStops && originalStops.length > 0 && (
           <div className="px-4 pt-3 pb-0">
             <button
@@ -962,11 +1092,9 @@ const MapView = ({
               }`}
             >
               <span>{showOriginalRoute ? 'Showing original order' : 'Show original route'}</span>
-              <span className="flex items-center gap-1.5">
-                <svg width="12" height="4" viewBox="0 0 12 4" className="shrink-0">
-                  <line x1="0" y1="2" x2="12" y2="2" stroke={showOriginalRoute ? '#ef4444' : '#9ca3af'} strokeWidth="2" strokeDasharray="3,2" />
-                </svg>
-              </span>
+              <svg width="12" height="4" viewBox="0 0 12 4" className="shrink-0">
+                <line x1="0" y1="2" x2="12" y2="2" stroke={showOriginalRoute ? '#ef4444' : '#9ca3af'} strokeWidth="2" strokeDasharray="3,2" />
+              </svg>
             </button>
           </div>
         )}
@@ -976,8 +1104,13 @@ const MapView = ({
             <p className="text-xs text-gray-400 mb-2 italic">Original unoptimized order</p>
           )}
           <div className="space-y-2">
-            {(showOriginalRoute && originalStops && originalStops.length > 0 ? originalStops : formData.stops).map((stop: any, index: number) => {
-              const displayList = showOriginalRoute && originalStops && originalStops.length > 0 ? originalStops : formData.stops;
+            {(showOriginalRoute && originalStops && originalStops.length > 0
+              ? originalStops
+              : formData.stops
+            ).map((stop: any, index: number) => {
+              const displayList = showOriginalRoute && originalStops?.length > 0
+                ? originalStops
+                : formData.stops;
               const total = displayList.length;
               const isStart = index === 0;
               const isEnd = index === total - 1;
@@ -996,6 +1129,7 @@ const MapView = ({
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm text-gray-800 leading-snug">{stop.location}</p>
+                    {/* Green for non-zero weight, gray for 0 — always shown */}
                     <p className={`text-xs mt-0.5 ${weightValue > 0 ? 'text-[#034626] font-semibold' : 'text-gray-400'}`}>
                       {weightValue} kg pickup
                     </p>
