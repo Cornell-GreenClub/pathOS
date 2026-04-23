@@ -11,7 +11,19 @@ import {
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 
-// Fix for default marker icons
+// Unit conversion helpers (imperial toggle)
+const toDistance = (km: number | null, imp: boolean) =>
+  km == null ? null : imp ? +(km * 0.621371).toFixed(2) : km;
+const toFuel = (L_: number | null, imp: boolean) =>
+  L_ == null ? null : imp ? +(L_ * 0.264172).toFixed(2) : L_;
+const toWeight = (kg: number | null, imp: boolean) =>
+  kg == null ? null : imp ? +(kg * 2.20462).toFixed(1) : kg;
+const toEff = (fuelL: number, distKm: number, imp: boolean) =>
+  imp
+    ? +((235.214 / ((fuelL / distKm) * 100)).toFixed(1))
+    : +((fuelL / distKm) * 100).toFixed(1);
+
+// Fix for default marker icons in leaflet
 L.Icon.Default.mergeOptions({
   iconRetinaUrl:
     'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.3.1/images/marker-icon-2x.png',
@@ -19,45 +31,43 @@ L.Icon.Default.mergeOptions({
     'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.3.1/images/marker-shadow.png',
 });
 
-/**
- * MapController adjusts the map view to fit the provided route or coordinates.
- *
- * Props:
- * - startCoords: Coordinates object for the start point (lat, lng)
- * - endCoords: Coordinates object for the end point (lat, lng)
- * - route: Array of lat/lng tuples representing the route
- *
- * Behavior:
- * - If a route is provided, fit the map to its bounds (showing the full path).
- * - Otherwise, fit the map to the bounds defined by the start and end coordinates.
- * - This component is a "headless" map component that uses the useMap hook.
- */
+// Custom DivIcon with stop number label and hover highlighting
+const createMarkerIcon = (index: number, total: number, isHovered: boolean) => {
+  const isStart = index === 0;
+  const isEnd = index === total - 1;
+  const color = isStart ? '#3b82f6' : isEnd ? '#ef4444' : '#f97316';
+  const label = isStart ? 'S' : isEnd ? 'E' : String(index);
+  const size = isHovered ? 38 : 30;
+  return new L.DivIcon({
+    html: `<div style="width:${size}px;height:${size}px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);background:${color};display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,0.3);border:2px solid white;${isHovered ? `outline:3px solid ${color};outline-offset:2px;` : ''}"><span style="transform:rotate(45deg);color:white;font-weight:bold;font-size:${isHovered ? 13 : 11}px;font-family:sans-serif;">${label}</span></div>`,
+    className: '',
+    iconSize: [size, size],
+    iconAnchor: [size / 2, size],
+    popupAnchor: [0, -size],
+  });
+};
+
 const MapController = ({ startCoords, endCoords, route }: any) => {
   const map = useMap();
-
   React.useEffect(() => {
     if (route && route.length > 0) {
-      const bounds = L.latLngBounds(route);
-      map.fitBounds(bounds, { padding: [50, 50] });
+      map.fitBounds(L.latLngBounds(route), { padding: [50, 50] });
     } else if (startCoords && endCoords) {
-      const bounds = L.latLngBounds(
-        [startCoords.lat, startCoords.lng],
-        [endCoords.lat, endCoords.lng]
+      map.fitBounds(
+        L.latLngBounds(
+          [startCoords.lat, startCoords.lng],
+          [endCoords.lat, endCoords.lng]
+        ),
+        { padding: [50, 50] }
       );
-      map.fitBounds(bounds, { padding: [50, 50] });
     }
   }, [map, route, startCoords, endCoords]);
-
   return null;
 };
 
-/**
- * InfoTip renders a small ⓘ icon that reveals a tooltip on hover.
- */
 const InfoTip = ({ text }: { text: string }) => {
   const [visible, setVisible] = useState(false);
   const ref = useRef<HTMLSpanElement>(null);
-
   return (
     <span className="relative inline-flex items-center ml-1" ref={ref}>
       <button
@@ -81,53 +91,40 @@ const InfoTip = ({ text }: { text: string }) => {
   );
 };
 
-/**
- * Legend displays a visual guide to map markers and route colors.
- *
- * UI Legend includes:
- * - Blue circle: Start point
- * - Red circle: End point
- * - Yellow circle: Intermediate stop
- * - Blue line: Route path
- */
-const Legend = () => {
-  return (
-    <div className="absolute bottom-5 right-5 bg-white p-4 rounded-lg shadow-lg z-[1000] text-sm text-black">
-      <h4 className="font-semibold mb-2">Legend</h4>
-      <div className="space-y-2">
-        <div className="flex items-center gap-2">
-          <div className="w-4 h-4 bg-blue-500 rounded-full"></div>
-          <span>Start</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="w-4 h-4 bg-red-500 rounded-full"></div>
-          <span>End</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="w-4 h-4 bg-orange-400 rounded-full"></div>
-          <span>Intermediate Stop</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="w-4 h-1 bg-blue-500"></div>
-          <span>Route</span>
-        </div>
+const Legend = ({ showOriginalRoute }: { showOriginalRoute: boolean }) => (
+  <div className="absolute bottom-5 right-5 bg-white p-4 rounded-lg shadow-lg z-[1000] text-sm text-black">
+    <h4 className="font-semibold mb-2">Legend</h4>
+    <div className="space-y-2">
+      <div className="flex items-center gap-2">
+        <div className="w-4 h-4 bg-blue-500 rounded-full" />
+        <span>Start</span>
       </div>
+      <div className="flex items-center gap-2">
+        <div className="w-4 h-4 bg-red-500 rounded-full" />
+        <span>End</span>
+      </div>
+      <div className="flex items-center gap-2">
+        <div className="w-4 h-4 bg-orange-400 rounded-full" />
+        <span>Intermediate Stop</span>
+      </div>
+      <div className="flex items-center gap-2">
+        <div className="w-4 h-1 bg-blue-500" />
+        <span>Optimized Route</span>
+      </div>
+      {showOriginalRoute && (
+        <div className="flex items-center gap-2">
+          <svg width="16" height="4" viewBox="0 0 16 4">
+            <line x1="0" y1="2" x2="16" y2="2" stroke="#ef4444" strokeWidth="2" strokeDasharray="4,3" />
+          </svg>
+          <span>Original Route</span>
+        </div>
+      )}
     </div>
-  );
-};
+  </div>
+);
 
-/**
- * ZoomControls adds custom zoom in/out buttons to the map.
- *
- * Behavior:
- * - Zoom in: increases the map's zoom level
- * - Zoom out: decreases the map's zoom level
- *
- * Styling ensures visibility and hover feedback.
- */
 const ZoomControls = () => {
   const map = useMap();
-
   return (
     <div className="absolute left-5 bottom-20 flex flex-col gap-2 z-[1000] text-black">
       <button
@@ -135,19 +132,8 @@ const ZoomControls = () => {
         className="bg-white rounded-lg p-2 shadow-lg hover:bg-gray-50"
         aria-label="Zoom in"
       >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          className="h-6 w-6"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M12 6v6m0 0v6m0-6h6m-6 0H6"
-          />
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
         </svg>
       </button>
       <button
@@ -155,87 +141,54 @@ const ZoomControls = () => {
         className="bg-white rounded-lg p-2 shadow-lg hover:bg-gray-50"
         aria-label="Zoom out"
       >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          className="h-6 w-6"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M20 12H4"
-          />
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
         </svg>
       </button>
     </div>
   );
 };
 
-/**
- * AnalyticsPanel displays real route analytics from the backend physics model,
- * showing before/after comparison of distance, duration, fuel, and CO2.
- *
- * Props:
- * - isOpen: Boolean indicating whether the panel is visible
- * - onClose: Function to close the panel
- * - metrics: RouteMetrics object with optimized and original values from backend
- * - formData: Object containing form submission data, such as stops
- */
-const AnalyticsPanel = ({ isOpen, onClose, metrics, formData }: any) => {
-  const [runData, setRunData] = useState<any>(null);
-  const [runLoading, setRunLoading] = useState(false);
+const AnalyticsPanel = ({ isOpen, onClose, metrics, formData, imperial, setImperial }: any) => {
   const [exportOpen, setExportOpen] = useState(false);
+  const [equivTab, setEquivTab] = useState<'original' | 'optimized' | 'yearly'>('optimized');
 
-  const fetchRunData = async () => {
-    if (runData) { setRunData(null); return; }
-    setRunLoading(true);
-    try {
-      let backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://127.0.0.1:8000';
-      if (!backendUrl.startsWith('http')) backendUrl = `https://${backendUrl}`;
-      const res = await fetch(`${backendUrl}/run/${metrics.matrixRunId}`);
-      if (res.ok) setRunData(await res.json());
-    } finally {
-      setRunLoading(false);
-    }
-  };
+  const distUnit   = imperial ? 'mi'  : 'km';
+  const fuelUnit   = imperial ? 'gal' : 'L';
+  const weightUnit = imperial ? 'lbs' : 'kg';
+  const effLabel   = imperial ? 'MPG' : 'L/100km';
 
-  const hasData =
-    metrics && (metrics.distanceKm != null || metrics.fuelLiters != null);
+  const hasData = metrics && (metrics.distanceKm != null || metrics.fuelLiters != null);
   const hasOriginal = metrics && metrics.originalDistanceKm != null;
 
-  const buildGoogleMapsUrl = (stops: any[]) => {
-    if (!stops || stops.length < 2) return null;
-    const origin = `${stops[0].coords.lat},${stops[0].coords.lng}`;
-    const dest = `${stops[stops.length - 1].coords.lat},${stops[stops.length - 1].coords.lng}`;
-    const mids = stops.slice(1, -1);
-    const waypointStr = mids.map((s: any) => `${s.coords.lat},${s.coords.lng}`).join('|');
-    return `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${dest}${waypointStr ? `&waypoints=${encodeURIComponent(waypointStr)}` : ''}&travelmode=driving`;
-  };
-
-  const fuelSaved =
+  // Raw metric savings (always in SI for computation)
+  const fuelSavedRaw =
     hasOriginal && metrics.fuelLiters != null
-      ? Math.round((metrics.originalFuelLiters - metrics.fuelLiters) * 100) /
-        100
+      ? Math.round((metrics.originalFuelLiters - metrics.fuelLiters) * 100) / 100
       : null;
-  const co2Saved =
+  const co2SavedRaw =
     hasOriginal && metrics.co2Kg != null
       ? Math.round((metrics.originalCo2Kg - metrics.co2Kg) * 100) / 100
       : null;
-  const distanceSaved =
+  const distanceSavedRaw =
     hasOriginal && metrics.distanceKm != null
-      ? Math.round((metrics.originalDistanceKm - metrics.distanceKm) * 100) /
-        100
+      ? Math.round((metrics.originalDistanceKm - metrics.distanceKm) * 100) / 100
       : null;
+
+  // Converted display values
+  const fuelSaved     = toFuel(fuelSavedRaw, imperial);
+  const co2Saved      = toWeight(co2SavedRaw, imperial);
+  const distanceSaved = toDistance(distanceSavedRaw, imperial);
+  const dispDistKm    = toDistance(metrics?.distanceKm, imperial);
+  const dispOrigDistKm= toDistance(metrics?.originalDistanceKm, imperial);
+  const dispFuelL     = toFuel(metrics?.fuelLiters, imperial);
+  const dispOrigFuelL = toFuel(metrics?.originalFuelLiters, imperial);
+  const dispCo2Kg     = toWeight(metrics?.co2Kg, imperial);
+  const dispOrigCo2Kg = toWeight(metrics?.originalCo2Kg, imperial);
+
   const fuelSavedPct =
     hasOriginal && metrics.originalFuelLiters > 0
-      ? (
-          ((metrics.originalFuelLiters - metrics.fuelLiters) /
-            metrics.originalFuelLiters) *
-          100
-        ).toFixed(1)
+      ? (((metrics.originalFuelLiters - metrics.fuelLiters) / metrics.originalFuelLiters) * 100).toFixed(1)
       : null;
   const timeDeltaMin =
     hasOriginal && metrics.durationMin != null && metrics.originalDurationMin != null
@@ -248,7 +201,15 @@ const AnalyticsPanel = ({ isOpen, onClose, metrics, formData }: any) => {
     return `${Math.round(min)}m`;
   };
 
-  // Export route report as downloadable JSON
+  const buildGoogleMapsUrl = (stops: any[]) => {
+    if (!stops || stops.length < 2) return null;
+    const origin = `${stops[0].coords.lat},${stops[0].coords.lng}`;
+    const dest = `${stops[stops.length - 1].coords.lat},${stops[stops.length - 1].coords.lng}`;
+    const mids = stops.slice(1, -1);
+    const waypointStr = mids.map((s: any) => `${s.coords.lat},${s.coords.lng}`).join('|');
+    return `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${dest}${waypointStr ? `&waypoints=${encodeURIComponent(waypointStr)}` : ''}&travelmode=driving`;
+  };
+
   const handleExport = () => {
     const googleMapsUrl = buildGoogleMapsUrl(formData.stops);
     const reportData = {
@@ -278,15 +239,13 @@ const AnalyticsPanel = ({ isOpen, onClose, metrics, formData }: any) => {
         co2Kg: metrics?.co2Kg,
       },
       savings: {
-        fuelLiters: fuelSaved,
-        co2Kg: co2Saved,
-        distanceKm: distanceSaved,
+        fuelLiters: fuelSavedRaw,
+        co2Kg: co2SavedRaw,
+        distanceKm: distanceSavedRaw,
         fuelPct: fuelSavedPct,
       },
     };
-    const blob = new Blob([JSON.stringify(reportData, null, 2)], {
-      type: 'application/json',
-    });
+    const blob = new Blob([JSON.stringify(reportData, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
@@ -312,10 +271,10 @@ const AnalyticsPanel = ({ isOpen, onClose, metrics, formData }: any) => {
     if (metrics) {
       rows.push([]);
       rows.push(['Metric', 'Original', 'Optimized', 'Saved']);
-      rows.push(['Distance (km)', metrics.originalDistanceKm ?? '—', metrics.distanceKm ?? '—', distanceSaved ?? '—']);
+      rows.push(['Distance (km)', metrics.originalDistanceKm ?? '—', metrics.distanceKm ?? '—', distanceSavedRaw ?? '—']);
       rows.push(['Duration (min)', metrics.originalDurationMin ?? '—', metrics.durationMin ?? '—', '']);
-      rows.push(['Fuel (L)', metrics.originalFuelLiters ?? '—', metrics.fuelLiters ?? '—', fuelSaved ?? '—']);
-      rows.push(['CO2 (kg)', metrics.originalCo2Kg ?? '—', metrics.co2Kg ?? '—', co2Saved ?? '—']);
+      rows.push(['Fuel (L)', metrics.originalFuelLiters ?? '—', metrics.fuelLiters ?? '—', fuelSavedRaw ?? '—']);
+      rows.push(['CO2 (kg)', metrics.originalCo2Kg ?? '—', metrics.co2Kg ?? '—', co2SavedRaw ?? '—']);
     }
     const csv = rows.map((r) => r.join(',')).join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
@@ -333,14 +292,18 @@ const AnalyticsPanel = ({ isOpen, onClose, metrics, formData }: any) => {
     const vehicle = formData.vehicleNumber || 'Route';
     const date = new Date().toLocaleDateString();
     const googleMapsUrl = buildGoogleMapsUrl(formData.stops);
-    const stopsHtml = formData.stops.map((s: any, i: number) => {
-      const total = formData.stops.length;
-      const label = i === 0 ? 'Start' : i === total - 1 ? 'End' : `Stop ${i}`;
-      const weight = s.weightKg ? `<span style="color:#034626;font-size:11px;"> · ${s.weightKg} kg pickup</span>` : '';
-      return `<tr><td style="padding:6px 8px;color:#888;font-size:12px;">${label}</td><td style="padding:6px 8px;font-size:13px;">${s.location}${weight}</td></tr>`;
-    }).join('');
-    const metricsHtml = metrics ? `
-      <table style="width:100%;border-collapse:collapse;margin-top:16px;">
+    const stopsHtml = formData.stops
+      .map((s: any, i: number) => {
+        const total = formData.stops.length;
+        const label = i === 0 ? 'Start' : i === total - 1 ? 'End' : `Stop ${i}`;
+        const weight = s.weightKg
+          ? `<span style="color:#034626;font-size:11px;"> · ${s.weightKg} kg pickup</span>`
+          : '';
+        return `<tr><td style="padding:6px 8px;color:#888;font-size:12px;">${label}</td><td style="padding:6px 8px;font-size:13px;">${s.location}${weight}</td></tr>`;
+      })
+      .join('');
+    const metricsHtml = metrics
+      ? `<table style="width:100%;border-collapse:collapse;margin-top:16px;">
         <thead><tr style="background:#f3f4f6;">
           <th style="padding:8px;text-align:left;font-size:12px;color:#555;">Metric</th>
           <th style="padding:8px;text-align:right;font-size:12px;color:#555;">Original</th>
@@ -348,12 +311,13 @@ const AnalyticsPanel = ({ isOpen, onClose, metrics, formData }: any) => {
           <th style="padding:8px;text-align:right;font-size:12px;color:#16a34a;">Saved</th>
         </tr></thead>
         <tbody>
-          <tr><td style="padding:6px 8px;font-size:13px;">Distance</td><td style="text-align:right;padding:6px 8px;">${metrics.originalDistanceKm ?? '—'} km</td><td style="text-align:right;padding:6px 8px;color:#034626;">${metrics.distanceKm ?? '—'} km</td><td style="text-align:right;padding:6px 8px;color:#16a34a;">${distanceSaved != null ? `${distanceSaved} km` : '—'}</td></tr>
+          <tr><td style="padding:6px 8px;font-size:13px;">Distance</td><td style="text-align:right;padding:6px 8px;">${metrics.originalDistanceKm ?? '—'} km</td><td style="text-align:right;padding:6px 8px;color:#034626;">${metrics.distanceKm ?? '—'} km</td><td style="text-align:right;padding:6px 8px;color:#16a34a;">${distanceSavedRaw != null ? `${distanceSavedRaw} km` : '—'}</td></tr>
           <tr style="background:#f9fafb;"><td style="padding:6px 8px;font-size:13px;">Duration</td><td style="text-align:right;padding:6px 8px;">${metrics.originalDurationMin != null ? formatDuration(metrics.originalDurationMin) : '—'}</td><td style="text-align:right;padding:6px 8px;color:#034626;">${metrics.durationMin != null ? formatDuration(metrics.durationMin) : '—'}</td><td style="text-align:right;padding:6px 8px;color:#16a34a;">—</td></tr>
-          <tr><td style="padding:6px 8px;font-size:13px;">Fuel</td><td style="text-align:right;padding:6px 8px;">${metrics.originalFuelLiters ?? '—'} L</td><td style="text-align:right;padding:6px 8px;color:#034626;">${metrics.fuelLiters ?? '—'} L</td><td style="text-align:right;padding:6px 8px;color:#16a34a;">${fuelSaved != null ? `${fuelSaved} L` : '—'}</td></tr>
-          <tr style="background:#f9fafb;"><td style="padding:6px 8px;font-size:13px;">CO₂</td><td style="text-align:right;padding:6px 8px;">${metrics.originalCo2Kg ?? '—'} kg</td><td style="text-align:right;padding:6px 8px;color:#034626;">${metrics.co2Kg ?? '—'} kg</td><td style="text-align:right;padding:6px 8px;color:#16a34a;">${co2Saved != null ? `${co2Saved} kg` : '—'}</td></tr>
+          <tr><td style="padding:6px 8px;font-size:13px;">Fuel</td><td style="text-align:right;padding:6px 8px;">${metrics.originalFuelLiters ?? '—'} L</td><td style="text-align:right;padding:6px 8px;color:#034626;">${metrics.fuelLiters ?? '—'} L</td><td style="text-align:right;padding:6px 8px;color:#16a34a;">${fuelSavedRaw != null ? `${fuelSavedRaw} L` : '—'}</td></tr>
+          <tr style="background:#f9fafb;"><td style="padding:6px 8px;font-size:13px;">CO₂</td><td style="text-align:right;padding:6px 8px;">${metrics.originalCo2Kg ?? '—'} kg</td><td style="text-align:right;padding:6px 8px;color:#034626;">${metrics.co2Kg ?? '—'} kg</td><td style="text-align:right;padding:6px 8px;color:#16a34a;">${co2SavedRaw != null ? `${co2SavedRaw} kg` : '—'}</td></tr>
         </tbody>
-      </table>` : '';
+      </table>`
+      : '';
     const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Route Report - ${vehicle}</title>
       <style>body{font-family:sans-serif;max-width:720px;margin:40px auto;color:#111;} h1{color:#034626;} table{width:100%;border-collapse:collapse;} @media print{body{margin:20px;}}</style>
       </head><body>
@@ -381,22 +345,26 @@ const AnalyticsPanel = ({ isOpen, onClose, metrics, formData }: any) => {
       <div className="p-4 border-b border-gray-200">
         <div className="flex justify-between items-center">
           <h2 className="text-xl font-semibold text-black">Route Analytics</h2>
-          <button onClick={onClose} className="p-2">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="h-6 w-6 text-black"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M6 18L18 6M6 6l12 12"
-              />
-            </svg>
-          </button>
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs text-gray-400">km</span>
+              <button
+                onClick={() => setImperial((v: boolean) => !v)}
+                className={`relative w-9 h-5 rounded-full transition-colors duration-200 ${imperial ? 'bg-[#034626]' : 'bg-gray-300'}`}
+                aria-label="Toggle imperial units"
+              >
+                <span
+                  className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform duration-200 ${imperial ? 'translate-x-4' : 'translate-x-0'}`}
+                />
+              </button>
+              <span className="text-xs text-gray-400">mi</span>
+            </div>
+            <button onClick={onClose} className="p-2">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -409,36 +377,22 @@ const AnalyticsPanel = ({ isOpen, onClose, metrics, formData }: any) => {
             {/* Savings Summary */}
             {hasOriginal && fuelSaved != null && (
               <div className="bg-gradient-to-br from-green-50 to-emerald-50 p-5 rounded-xl border border-green-100">
-                <h3 className="text-lg font-semibold text-green-800 mb-3">
-                  Optimization Savings
-                </h3>
+                <h3 className="text-lg font-semibold text-green-800 mb-3">Optimization Savings</h3>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="bg-white bg-opacity-60 rounded-lg p-3">
                     <p className="text-xs text-green-600 mb-0.5">Fuel saved</p>
-                    <p className="text-xl font-bold text-green-700">
-                      {fuelSaved} L
-                    </p>
-                    {fuelSavedPct && (
-                      <p className="text-xs text-green-500">
-                        {fuelSavedPct}% less
-                      </p>
-                    )}
+                    <p className="text-xl font-bold text-green-700">{fuelSaved} {fuelUnit}</p>
+                    {fuelSavedPct && <p className="text-xs text-green-500">{fuelSavedPct}% less</p>}
                   </div>
                   <div className="bg-white bg-opacity-60 rounded-lg p-3">
                     <p className="text-xs text-green-600 mb-0.5">CO₂ saved</p>
-                    <p className="text-xl font-bold text-green-700">
-                      {co2Saved} kg
-                    </p>
+                    <p className="text-xl font-bold text-green-700">{co2Saved} {weightUnit}</p>
                   </div>
                 </div>
                 {distanceSaved != null && (
                   <div className="mt-3 bg-white bg-opacity-60 rounded-lg p-3">
-                    <p className="text-xs text-green-600 mb-0.5">
-                      Distance saved
-                    </p>
-                    <p className="text-xl font-bold text-green-700">
-                      {distanceSaved} km
-                    </p>
+                    <p className="text-xs text-green-600 mb-0.5">Distance saved</p>
+                    <p className="text-xl font-bold text-green-700">{distanceSaved} {distUnit}</p>
                   </div>
                 )}
                 {fuelSavedPct && metrics.originalFuelLiters > 0 && (
@@ -453,7 +407,7 @@ const AnalyticsPanel = ({ isOpen, onClose, metrics, formData }: any) => {
                         <div className="flex-1 bg-gray-200 rounded-full h-2.5">
                           <div className="bg-gray-400 h-2.5 rounded-full w-full" />
                         </div>
-                        <span className="text-xs font-medium text-gray-600 w-12 text-right shrink-0">{metrics.originalFuelLiters} L</span>
+                        <span className="text-xs font-medium text-gray-600 w-14 text-right shrink-0">{dispOrigFuelL} {fuelUnit}</span>
                       </div>
                       <div className="flex items-center gap-2">
                         <span className="text-xs text-green-700 w-16 shrink-0">Optimized</span>
@@ -463,7 +417,7 @@ const AnalyticsPanel = ({ isOpen, onClose, metrics, formData }: any) => {
                             style={{ width: `${(metrics.fuelLiters / metrics.originalFuelLiters) * 100}%` }}
                           />
                         </div>
-                        <span className="text-xs font-medium text-green-700 w-12 text-right shrink-0">{metrics.fuelLiters} L</span>
+                        <span className="text-xs font-medium text-green-700 w-14 text-right shrink-0">{dispFuelL} {fuelUnit}</span>
                       </div>
                     </div>
                   </div>
@@ -478,16 +432,12 @@ const AnalyticsPanel = ({ isOpen, onClose, metrics, formData }: any) => {
                 {hasOriginal && (
                   <div>
                     <p className="text-xs text-gray-500">Original</p>
-                    <p className="text-lg font-medium">
-                      {metrics.originalDistanceKm} km
-                    </p>
+                    <p className="text-lg font-medium">{dispOrigDistKm} {distUnit}</p>
                   </div>
                 )}
                 <div>
                   <p className="text-xs text-[#034626]">Optimized</p>
-                  <p className="text-lg font-medium text-[#034626]">
-                    {metrics.distanceKm} km
-                  </p>
+                  <p className="text-lg font-medium text-[#034626]">{dispDistKm} {distUnit}</p>
                 </div>
               </div>
             </div>
@@ -499,18 +449,14 @@ const AnalyticsPanel = ({ isOpen, onClose, metrics, formData }: any) => {
                 {hasOriginal && (
                   <div>
                     <p className="text-xs text-gray-500">Original</p>
-                    <p className="text-lg font-medium">
-                      {formatDuration(metrics.originalDurationMin)}
-                    </p>
+                    <p className="text-lg font-medium">{formatDuration(metrics.originalDurationMin)}</p>
                   </div>
                 )}
                 <div>
                   <p className="text-xs text-[#034626]">Optimized</p>
-                  <p className="text-lg font-medium text-[#034626]">
-                    {formatDuration(metrics.durationMin)}
-                  </p>
+                  <p className="text-lg font-medium text-[#034626]">{formatDuration(metrics.durationMin)}</p>
                   {timeDeltaMin != null && timeDeltaMin !== 0 && (
-                    <p className={`text-xs mt-0.5 font-medium ${timeDeltaMin < 0 ? 'text-green-600' : 'text-amber-600'}`}>
+                    <p className="text-xs mt-0.5 font-medium text-blue-600">
                       {timeDeltaMin < 0
                         ? `↓ ${formatDuration(Math.abs(timeDeltaMin))} faster`
                         : `↑ ${formatDuration(timeDeltaMin)} slower`}
@@ -531,22 +477,18 @@ const AnalyticsPanel = ({ isOpen, onClose, metrics, formData }: any) => {
                   {hasOriginal && (
                     <div>
                       <p className="text-xs text-gray-500">Original</p>
-                      <p className="text-lg font-medium">
-                        {metrics.originalFuelLiters} L
-                      </p>
+                      <p className="text-lg font-medium">{dispOrigFuelL} {fuelUnit}</p>
                     </div>
                   )}
                   <div>
                     <p className="text-xs text-[#034626]">Optimized</p>
-                    <p className="text-lg font-medium text-[#034626]">
-                      {metrics.fuelLiters} L
-                    </p>
-                    {fuelSaved != null && fuelSaved > 0 && (
-                      <p className="text-xs mt-0.5 text-green-600 font-medium">
-                        ↓ {fuelSaved} L less{fuelSavedPct ? ` (${fuelSavedPct}%)` : ''}
+                    <p className="text-lg font-medium text-[#034626]">{dispFuelL} {fuelUnit}</p>
+                    {fuelSaved != null && fuelSavedRaw! > 0 && (
+                      <p className="text-xs mt-0.5 text-blue-600 font-medium">
+                        ↓ {fuelSaved} {fuelUnit} less{fuelSavedPct ? ` (${fuelSavedPct}%)` : ''}
                       </p>
                     )}
-                    {fuelSaved === 0 && hasOriginal && (
+                    {fuelSavedRaw === 0 && hasOriginal && (
                       <p className="text-xs mt-0.5 text-gray-400">no change</p>
                     )}
                   </div>
@@ -562,61 +504,155 @@ const AnalyticsPanel = ({ isOpen, onClose, metrics, formData }: any) => {
                   {hasOriginal && (
                     <div>
                       <p className="text-xs text-gray-500">Original</p>
-                      <p className="text-lg font-medium">
-                        {metrics.originalCo2Kg} kg
-                      </p>
+                      <p className="text-lg font-medium">{dispOrigCo2Kg} {weightUnit}</p>
                     </div>
                   )}
                   <div>
                     <p className="text-xs text-[#034626]">Optimized</p>
-                    <p className="text-lg font-medium text-[#034626]">
-                      {metrics.co2Kg} kg
-                    </p>
+                    <p className="text-lg font-medium text-[#034626]">{dispCo2Kg} {weightUnit}</p>
                   </div>
                 </div>
               </div>
             )}
 
-            {/* Impact Equivalents */}
-            {(fuelSaved != null || co2Saved != null) && (
+            {/* Impact Equivalents — 3 tabs */}
+            {(fuelSavedRaw != null || co2SavedRaw != null || hasOriginal) && (
               <div className="bg-blue-50 p-4 rounded-xl border border-blue-100">
                 <h3 className="text-sm font-semibold text-blue-800 mb-3">Impact Equivalents</h3>
+                {/* Tab bar */}
+                <div className="flex gap-1 mb-3">
+                  {(['original', 'optimized', 'yearly'] as const).map((tab) => (
+                    <button
+                      key={tab}
+                      onClick={() => setEquivTab(tab)}
+                      className={`flex-1 text-xs py-1 px-1 rounded-full font-medium transition-colors ${
+                        equivTab === tab
+                          ? 'bg-[#034626] text-white'
+                          : 'bg-white text-gray-500 hover:bg-gray-50'
+                      }`}
+                    >
+                      {tab === 'original' ? 'Original' : tab === 'optimized' ? 'Optimized' : 'Per Year'}
+                    </button>
+                  ))}
+                </div>
+
                 <div className="space-y-2 text-sm">
-                  {co2Saved != null && co2Saved > 0 && (
+                  {equivTab === 'original' && hasOriginal && (
                     <>
-                      <div className="flex justify-between items-center">
-                        <span className="text-blue-700 text-xs flex items-center">
-                          Trees absorbing CO₂ for 1 year
-                          <InfoTip text={`${co2Saved} kg CO₂ saved ÷ 21 kg/tree/yr = ${(Math.round(co2Saved / 21 * 10) / 10).toFixed(1)} trees. Source: US Forest Service avg of 21 kg CO₂ absorbed per mature tree per year.`} />
-                        </span>
-                        <span className="font-semibold text-blue-900 text-sm">{(Math.round(co2Saved / 21 * 10) / 10).toFixed(1)}</span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-blue-700 text-xs flex items-center">
-                          Equivalent car km avoided
-                          <InfoTip text={`${co2Saved} kg CO₂ saved ÷ 0.12 kg CO₂/km = ${Math.round(co2Saved / 0.12)} km. Based on an average passenger car emitting 120 g CO₂/km (EU average).`} />
-                        </span>
-                        <span className="font-semibold text-blue-900 text-sm">{Math.round(co2Saved / 0.12)} km</span>
-                      </div>
+                      {metrics.originalCo2Kg != null && metrics.originalCo2Kg > 0 && (
+                        <>
+                          <div className="flex justify-between items-center">
+                            <span className="text-blue-700 text-xs flex items-center">
+                              Trees to offset CO₂
+                              <InfoTip text={`${metrics.originalCo2Kg} kg CO₂ emitted ÷ 21 kg/tree/yr = ${(Math.round(metrics.originalCo2Kg / 21 * 10) / 10).toFixed(1)} trees needed to offset.`} />
+                            </span>
+                            <span className="font-semibold text-blue-900 text-sm">{(Math.round(metrics.originalCo2Kg / 21 * 10) / 10).toFixed(1)}</span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-blue-700 text-xs flex items-center">
+                              Equivalent car {distUnit} driven
+                              <InfoTip text={`${metrics.originalCo2Kg} kg CO₂ ÷ 0.12 kg CO₂/km = ${Math.round(metrics.originalCo2Kg / 0.12)} km equivalent.`} />
+                            </span>
+                            <span className="font-semibold text-blue-900 text-sm">{toDistance(Math.round(metrics.originalCo2Kg / 0.12), imperial)} {distUnit}</span>
+                          </div>
+                        </>
+                      )}
+                      {metrics.originalFuelLiters != null && (
+                        <div className="flex justify-between items-center">
+                          <span className="text-blue-700 text-xs flex items-center">
+                            Est. fuel cost
+                            <InfoTip text={`${metrics.originalFuelLiters} L × $1.50/L = $${(Math.round(metrics.originalFuelLiters * 1.5 * 100) / 100).toFixed(2)}.`} />
+                          </span>
+                          <span className="font-semibold text-blue-900 text-sm">${(Math.round(metrics.originalFuelLiters * 1.5 * 100) / 100).toFixed(2)}</span>
+                        </div>
+                      )}
+                      {metrics.originalFuelLiters != null && metrics.originalDistanceKm != null && metrics.originalDistanceKm > 0 && (
+                        <div className="flex justify-between items-center">
+                          <span className="text-blue-700 text-xs flex items-center">
+                            Original fuel efficiency
+                            <InfoTip text={`Original route: ${toEff(metrics.originalFuelLiters, metrics.originalDistanceKm, imperial)} ${effLabel}.`} />
+                          </span>
+                          <span className="font-semibold text-blue-900 text-sm">{toEff(metrics.originalFuelLiters, metrics.originalDistanceKm, imperial)} {effLabel}</span>
+                        </div>
+                      )}
                     </>
                   )}
-                  {fuelSaved != null && fuelSaved > 0 && (
-                    <div className="flex justify-between items-center">
-                      <span className="text-blue-700 text-xs flex items-center">
-                        Est. fuel cost saved
-                        <InfoTip text={`${fuelSaved} L saved × $1.50/L = $${(Math.round(fuelSaved * 1.5 * 100) / 100).toFixed(2)}. Uses US average diesel pump price of ~$1.50/L.`} />
-                      </span>
-                      <span className="font-semibold text-blue-900 text-sm">${(Math.round(fuelSaved * 1.5 * 100) / 100).toFixed(2)}</span>
-                    </div>
+
+                  {equivTab === 'optimized' && (
+                    <>
+                      {co2SavedRaw != null && co2SavedRaw > 0 && (
+                        <>
+                          <div className="flex justify-between items-center">
+                            <span className="text-blue-700 text-xs flex items-center">
+                              Trees absorbing CO₂ for 1 year
+                              <InfoTip text={`${co2SavedRaw} kg CO₂ saved ÷ 21 kg/tree/yr = ${(Math.round(co2SavedRaw / 21 * 10) / 10).toFixed(1)} trees. Source: US Forest Service.`} />
+                            </span>
+                            <span className="font-semibold text-blue-900 text-sm">{(Math.round(co2SavedRaw / 21 * 10) / 10).toFixed(1)}</span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-blue-700 text-xs flex items-center">
+                              Equivalent car {distUnit} avoided
+                              <InfoTip text={`${co2SavedRaw} kg CO₂ saved ÷ 0.12 kg CO₂/km = ${Math.round(co2SavedRaw / 0.12)} km avoided. Based on avg passenger car emitting 120 g CO₂/km.`} />
+                            </span>
+                            <span className="font-semibold text-blue-900 text-sm">{toDistance(Math.round(co2SavedRaw / 0.12), imperial)} {distUnit}</span>
+                          </div>
+                        </>
+                      )}
+                      {fuelSavedRaw != null && fuelSavedRaw > 0 && (
+                        <div className="flex justify-between items-center">
+                          <span className="text-blue-700 text-xs flex items-center">
+                            Est. fuel cost saved
+                            <InfoTip text={`${fuelSavedRaw} L saved × $1.50/L = $${(Math.round(fuelSavedRaw * 1.5 * 100) / 100).toFixed(2)}. Uses US average diesel price of ~$1.50/L.`} />
+                          </span>
+                          <span className="font-semibold text-blue-900 text-sm">${(Math.round(fuelSavedRaw * 1.5 * 100) / 100).toFixed(2)}</span>
+                        </div>
+                      )}
+                      {metrics.fuelLiters != null && metrics.distanceKm != null && metrics.distanceKm > 0 && (
+                        <div className="flex justify-between items-center">
+                          <span className="text-blue-700 text-xs flex items-center">
+                            Optimized fuel efficiency
+                            <InfoTip text={`${metrics.fuelLiters} L ÷ ${metrics.distanceKm} km × 100 = ${toEff(metrics.fuelLiters, metrics.distanceKm, imperial)} ${effLabel}.`} />
+                          </span>
+                          <span className="font-semibold text-blue-900 text-sm">{toEff(metrics.fuelLiters, metrics.distanceKm, imperial)} {effLabel}</span>
+                        </div>
+                      )}
+                    </>
                   )}
-                  {metrics.fuelLiters != null && metrics.distanceKm != null && metrics.distanceKm > 0 && (
-                    <div className="flex justify-between items-center">
-                      <span className="text-blue-700 text-xs flex items-center">
-                        Optimized fuel efficiency
-                        <InfoTip text={`${metrics.fuelLiters} L ÷ ${metrics.distanceKm} km × 100 = ${(metrics.fuelLiters / metrics.distanceKm * 100).toFixed(1)} L/100km. Standard metric: litres consumed per 100 km driven.`} />
-                      </span>
-                      <span className="font-semibold text-blue-900 text-sm">{(metrics.fuelLiters / metrics.distanceKm * 100).toFixed(1)} L/100km</span>
-                    </div>
+
+                  {equivTab === 'yearly' && (
+                    <>
+                      {fuelSavedRaw != null && fuelSavedRaw > 0 ? (
+                        <>
+                          <div className="flex justify-between items-center">
+                            <span className="text-blue-700 text-xs">Annual fuel saved (260 days)</span>
+                            <span className="font-semibold text-blue-900 text-sm">
+                              {toFuel(Math.round(fuelSavedRaw * 260 * 100) / 100, imperial)} {fuelUnit}
+                            </span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-blue-700 text-xs">Annual cost saved</span>
+                            <span className="font-semibold text-blue-900 text-sm">${(Math.round(fuelSavedRaw * 260 * 1.5 * 100) / 100).toFixed(2)}</span>
+                          </div>
+                        </>
+                      ) : null}
+                      {co2SavedRaw != null && co2SavedRaw > 0 ? (
+                        <>
+                          <div className="flex justify-between items-center">
+                            <span className="text-blue-700 text-xs">Annual CO₂ saved</span>
+                            <span className="font-semibold text-blue-900 text-sm">
+                              {toWeight(Math.round(co2SavedRaw * 260 * 100) / 100, imperial)} {weightUnit}
+                            </span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-blue-700 text-xs">Annual trees equivalent</span>
+                            <span className="font-semibold text-blue-900 text-sm">{(Math.round(co2SavedRaw * 260 / 21 * 10) / 10).toFixed(1)}</span>
+                          </div>
+                        </>
+                      ) : null}
+                      {(fuelSavedRaw == null || fuelSavedRaw <= 0) && (co2SavedRaw == null || co2SavedRaw <= 0) && (
+                        <p className="text-xs text-gray-500">No savings to project annually.</p>
+                      )}
+                    </>
                   )}
                 </div>
               </div>
@@ -679,20 +715,6 @@ const AnalyticsPanel = ({ isOpen, onClose, metrics, formData }: any) => {
   );
 };
 
-/**
- * MapView renders a full-screen interactive map displaying the user's route and stops.
- * It uses Leaflet for map rendering and displays markers, a polyline route, and a side panel
- * for route analytics. It also provides controls for navigating back and viewing analytics.
- *
- * Props:
- * - formData: Object containing submitted route data, including stops and their coordinates
- * - route: Array of [lat, lng] points representing the optimized route polyline
- * - startCoords: Coordinates of the route start point
- * - endCoords: Coordinates of the route end point
- * - onBack: Function to navigate back to the previous UI step
- *
- * Note: The map uses OpenStreetMap tiles via CartoDB.
- */
 const MapView = ({
   formData,
   route,
@@ -700,21 +722,20 @@ const MapView = ({
   endCoords,
   onBack,
   metrics,
+  originalRoute,
+  originalStops,
 }: any) => {
-  const [isAnalyticsPanelOpen, setIsAnalyticsPanelOpen] = useState(false);
+  const [isAnalyticsPanelOpen, setIsAnalyticsPanelOpen] = useState(true);
   const [isStopsPanelOpen, setIsStopsPanelOpen] = useState(false);
+  const [hoveredStopIndex, setHoveredStopIndex] = useState<number | null>(null);
+  const [imperial, setImperial] = useState(false);
+  const [showOriginalRoute, setShowOriginalRoute] = useState(false);
 
-  /**
-   * Returns the color of a marker based on its index in the stop list:
-   * - Start (first two): blue
-   * - End (last): red
-   * - Intermediate stops: orange
-   */
-  const getMarkerColor = (index: number, total: number) => {
-    if (index === 0) return 'blue';
-    if (index === total - 1) return 'red';
-    return 'orange';
-  };
+  const panelOpen = isAnalyticsPanelOpen || isStopsPanelOpen;
+  const panelWidth = '384px';
+
+  const distUnit = imperial ? 'mi' : 'km';
+  const fuelUnit = imperial ? 'gal' : 'L';
 
   return (
     <div className="fixed inset-0 flex">
@@ -725,20 +746,13 @@ const MapView = ({
           zoomControl={false}
           style={{ width: '100%', height: '100%' }}
         >
-          {/* Tile layer for the map visuals */}
           <TileLayer
             url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
             attribution='&copy; <a href="https://carto.com/">CartoDB</a>'
           />
+          <MapController startCoords={startCoords} endCoords={endCoords} route={route} />
 
-          {/* Center map based on route start and end */}
-          <MapController
-            startCoords={startCoords}
-            endCoords={endCoords}
-            route={route}
-          />
-
-          {/* Render a marker for each stop */}
+          {/* Stop markers with DivIcon labels and hover highlighting */}
           {formData.stops.map(
             (
               stop: { location: string; coords: { lat: number; lng: number }; weightKg?: number },
@@ -749,49 +763,33 @@ const MapView = ({
               const isStart = index === 0;
               const isEnd = index === total - 1;
               const weightValue = stop.weightKg ? Number(stop.weightKg) : 0;
-              
+              const isHovered = hoveredStopIndex === index;
+
               return (
                 <Marker
-                  key={index}
+                  key={`${index}-${isHovered}`}
                   position={[stop.coords.lat, stop.coords.lng]}
-                  icon={
-                    new L.Icon({
-                      iconUrl: `https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-${getMarkerColor(index, total)}.png`,
-                      shadowUrl:
-                        'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.3.1/images/marker-shadow.png',
-                      iconSize: [25, 41],
-                      iconAnchor: [12, 41],
-                      popupAnchor: [1, -34],
-                      shadowSize: [41, 41],
-                    })
-                  }
+                  icon={createMarkerIcon(index, total, isHovered)}
                 >
-                  {/* Hover Tooltip for quick weight info */}
                   <Tooltip direction="top" offset={[0, -35]} opacity={0.95}>
-                     <div className="text-center font-sans tracking-wide">
-                       <div className="font-semibold text-gray-800">
-                         {isStart ? 'Start' : isEnd ? 'End' : `Stop ${index}`}
-                       </div>
-                       {weightValue > 0 && (
-                         <div className="text-xs text-[#034626] font-extrabold mt-0.5">
-                           {weightValue} kg
-                         </div>
-                       )}
-                     </div>
+                    <div className="text-center font-sans tracking-wide">
+                      <div className="font-semibold text-gray-800">
+                        {isStart ? 'Start' : isEnd ? 'End' : `Stop ${index}`}
+                      </div>
+                      <div className={`text-xs mt-0.5 ${weightValue > 0 ? 'text-[#034626] font-extrabold' : 'text-gray-400'}`}>
+                        {weightValue} kg pickup
+                      </div>
+                    </div>
                   </Tooltip>
-                  
-                  {/* Click Popup for detailed info */}
                   <Popup>
                     <div className="font-sans w-56 -m-1">
                       <div className="flex items-center gap-2 mb-2 pb-2 border-b border-gray-100">
-                        <div className={`w-3 h-3 rounded-full ${isStart ? 'bg-blue-500' : isEnd ? 'bg-red-500' : 'bg-orange-400'}`}></div>
+                        <div className={`w-3 h-3 rounded-full ${isStart ? 'bg-blue-500' : isEnd ? 'bg-red-500' : 'bg-orange-400'}`} />
                         <span className="font-bold text-gray-800 text-sm">
                           {isStart ? 'Start Location' : isEnd ? 'Final Destination' : `Stop ${index}`}
                         </span>
                       </div>
-                      <p className="text-[13px] text-gray-600 mb-3 leading-snug">
-                        {stop.location}
-                      </p>
+                      <p className="text-[13px] text-gray-600 mb-3 leading-snug">{stop.location}</p>
                       {weightValue > 0 && (
                         <div className="bg-green-50 border border-green-100 rounded-md p-2 flex justify-between items-center">
                           <span className="text-[11px] text-green-800 font-semibold tracking-wide uppercase">Pickup Weight</span>
@@ -805,10 +803,14 @@ const MapView = ({
             }
           )}
 
-          {/* Draw the route as a polyline if available */}
+          {/* Optimized route polyline */}
           {route && <Polyline positions={route} color="blue" weight={4} />}
 
-          {/* Custom zoom control */}
+          {/* Original route overlay (dashed red) */}
+          {showOriginalRoute && originalRoute && originalRoute.length > 0 && (
+            <Polyline positions={originalRoute} color="#ef4444" weight={3} dashArray="8,6" opacity={0.7} />
+          )}
+
           <ZoomControls />
         </MapContainer>
       </div>
@@ -816,107 +818,128 @@ const MapView = ({
       {/* Top navigation bar */}
       <div
         className="absolute top-0 p-4 z-[1000] flex justify-between items-start text-black transition-all duration-300 ease-in-out"
-        style={{ left: 0, right: isAnalyticsPanelOpen ? '384px' : isStopsPanelOpen ? '320px' : '0px' }}
+        style={{ left: 0, right: panelOpen ? panelWidth : '0px' }}
       >
-        <div className="flex gap-2">
+        <div className="flex gap-2 items-center">
+          {/* Back button — arrow icon only */}
           <button
             onClick={onBack}
-            className="bg-white rounded-lg px-4 py-2 shadow-lg hover:bg-gray-50 flex items-center gap-2"
+            className="bg-white rounded-lg px-3 py-2 shadow-lg hover:bg-gray-50 flex items-center"
+            aria-label="Back"
           >
-            <span>Back</span>
-          </button>
-          <button
-            onClick={() => { setIsAnalyticsPanelOpen((o) => !o); setIsStopsPanelOpen(false); }}
-            className="bg-[#034626] text-white rounded-lg px-4 py-2 shadow-lg hover:bg-[#023219] flex items-center gap-2"
-          >
-            <span>Analytics</span>
-          </button>
-          <button
-            onClick={() => { setIsStopsPanelOpen((o) => !o); setIsAnalyticsPanelOpen(false); }}
-            className="bg-white rounded-lg px-4 py-2 shadow-lg hover:bg-gray-50 flex items-center gap-2"
-          >
-            <span>Stops</span>
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
           </button>
         </div>
 
         {/* Route metrics pills */}
-        {metrics &&
-          (metrics.distanceKm != null || metrics.fuelLiters != null) &&
-          (() => {
-            const fmtDur = (min: number) =>
-              min >= 60
-                ? `${Math.floor(min / 60)}h ${Math.round(min % 60)}m`
-                : `${Math.round(min)}m`;
-            const fuelSaved =
-              metrics.originalFuelLiters != null && metrics.fuelLiters != null
-                ? Math.round(
-                    (metrics.originalFuelLiters - metrics.fuelLiters) * 100
-                  ) / 100
-                : null;
-            const co2Saved =
-              metrics.originalCo2Kg != null && metrics.co2Kg != null
-                ? Math.round((metrics.originalCo2Kg - metrics.co2Kg) * 100) /
-                  100
-                : null;
-            const fuelSavedPct =
-              metrics.originalFuelLiters != null &&
-              metrics.originalFuelLiters > 0 &&
-              fuelSaved != null
-                ? ((fuelSaved / metrics.originalFuelLiters) * 100).toFixed(1)
-                : null;
-            return (
-              <div className="flex gap-2 flex-wrap justify-end">
-                {metrics.distanceKm != null && (
-                  <div className="bg-white rounded-lg px-3 py-2 shadow-lg text-sm font-medium">
-                    <span className="text-gray-500">Distance&nbsp;</span>
-                    <span className="text-[#034626] font-bold">
-                      {metrics.distanceKm} km
+        {metrics && (metrics.distanceKm != null || metrics.fuelLiters != null) && (() => {
+          const fmtDur = (min: number) =>
+            min >= 60
+              ? `${Math.floor(min / 60)}h ${Math.round(min % 60)}m`
+              : `${Math.round(min)}m`;
+          const fuelSavedRaw =
+            metrics.originalFuelLiters != null && metrics.fuelLiters != null
+              ? Math.round((metrics.originalFuelLiters - metrics.fuelLiters) * 100) / 100
+              : null;
+          const co2SavedRaw =
+            metrics.originalCo2Kg != null && metrics.co2Kg != null
+              ? Math.round((metrics.originalCo2Kg - metrics.co2Kg) * 100) / 100
+              : null;
+          const fuelSavedPct =
+            metrics.originalFuelLiters != null && metrics.originalFuelLiters > 0 && fuelSavedRaw != null
+              ? ((fuelSavedRaw / metrics.originalFuelLiters) * 100).toFixed(1)
+              : null;
+          const dispDist = toDistance(metrics.distanceKm, imperial);
+          const dispFuel = toFuel(metrics.fuelLiters, imperial);
+          const dispCo2  = toWeight(metrics.co2Kg, imperial);
+          const dispFuelSaved = toFuel(fuelSavedRaw, imperial);
+          const dispCo2Saved  = toWeight(co2SavedRaw, imperial);
+          return (
+            <div className="flex gap-2 flex-wrap justify-end">
+              {metrics.distanceKm != null && (
+                <div className="bg-white rounded-lg px-3 py-2 shadow-lg text-sm font-medium">
+                  <span className="text-gray-500">Distance&nbsp;</span>
+                  <span className="text-[#034626] font-bold">{dispDist} {distUnit}</span>
+                </div>
+              )}
+              {metrics.durationMin != null && (
+                <div className="bg-white rounded-lg px-3 py-2 shadow-lg text-sm font-medium">
+                  <span className="text-gray-500">Duration&nbsp;</span>
+                  <span className="text-[#034626] font-bold">{fmtDur(metrics.durationMin)}</span>
+                </div>
+              )}
+              {metrics.fuelLiters != null && (
+                <div className="bg-white rounded-lg px-3 py-2 shadow-lg text-sm font-medium">
+                  <span className="text-gray-500">Fuel&nbsp;</span>
+                  <span className="text-[#034626] font-bold">{dispFuel} {fuelUnit}</span>
+                  {dispFuelSaved != null && fuelSavedRaw! > 0 && (
+                    <span className="text-blue-600 text-xs ml-1">
+                      ↓{dispFuelSaved} {fuelUnit}{fuelSavedPct ? ` (${fuelSavedPct}%)` : ''}
                     </span>
-                  </div>
-                )}
-                {metrics.durationMin != null && (
-                  <div className="bg-white rounded-lg px-3 py-2 shadow-lg text-sm font-medium">
-                    <span className="text-gray-500">Duration&nbsp;</span>
-                    <span className="text-[#034626] font-bold">
-                      {fmtDur(metrics.durationMin)}
-                    </span>
-                  </div>
-                )}
-                {metrics.fuelLiters != null && (
-                  <div className="bg-white rounded-lg px-3 py-2 shadow-lg text-sm font-medium">
-                    <span className="text-gray-500">Fuel&nbsp;</span>
-                    <span className="text-[#034626] font-bold">
-                      {metrics.fuelLiters} L
-                    </span>
-                    {fuelSaved != null && fuelSaved > 0 && (
-                      <span className="text-green-600 text-xs ml-1">
-                        ↓{fuelSaved} L
-                        {fuelSavedPct ? ` (${fuelSavedPct}%)` : ''}
-                      </span>
-                    )}
-                  </div>
-                )}
-                {metrics.co2Kg != null && (
-                  <div className="bg-white rounded-lg px-3 py-2 shadow-lg text-sm font-medium">
-                    <span className="text-gray-500">CO₂&nbsp;</span>
-                    <span className="text-[#034626] font-bold">
-                      {metrics.co2Kg} kg
-                    </span>
-                    {co2Saved != null && co2Saved > 0 && (
-                      <span className="text-green-600 text-xs ml-1">
-                        ↓{co2Saved} kg
-                      </span>
-                    )}
-                  </div>
-                )}
-              </div>
-            );
-          })()}
+                  )}
+                </div>
+              )}
+              {metrics.co2Kg != null && (
+                <div className="bg-white rounded-lg px-3 py-2 shadow-lg text-sm font-medium">
+                  <span className="text-gray-500">CO₂&nbsp;</span>
+                  <span className="text-[#034626] font-bold">{dispCo2} kg</span>
+                  {dispCo2Saved != null && co2SavedRaw! > 0 && (
+                    <span className="text-blue-600 text-xs ml-1">↓{dispCo2Saved} kg</span>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })()}
+      </div>
+
+      {/* Floating icon button stack — sits to the left of whichever panel is open */}
+      <div
+        className="fixed z-[1002] flex flex-col gap-2 transition-all duration-300 ease-in-out"
+        style={{
+          right: panelOpen ? panelWidth : '0px',
+          top: '50%',
+          transform: 'translateY(-50%)',
+        }}
+      >
+        {/* Analytics icon button */}
+        <button
+          onClick={() => {
+            setIsAnalyticsPanelOpen((o) => !o);
+            setIsStopsPanelOpen(false);
+          }}
+          className={`p-3 rounded-l-xl shadow-lg transition-colors ${isAnalyticsPanelOpen ? 'bg-[#034626] text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+          aria-label="Analytics"
+          title="Analytics"
+        >
+          {/* Bar chart icon */}
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+          </svg>
+        </button>
+
+        {/* Stops icon button */}
+        <button
+          onClick={() => {
+            setIsStopsPanelOpen((o) => !o);
+            setIsAnalyticsPanelOpen(false);
+          }}
+          className={`p-3 rounded-l-xl shadow-lg transition-colors ${isStopsPanelOpen ? 'bg-[#034626] text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+          aria-label="Stops"
+          title="Stops"
+        >
+          {/* Ordered list icon */}
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+          </svg>
+        </button>
       </div>
 
       {/* Stops list panel */}
       <div
-        className={`fixed right-0 top-0 h-full w-80 bg-white shadow-lg transform transition-transform duration-300 ease-in-out z-[1001] flex flex-col ${isStopsPanelOpen ? 'translate-x-0' : 'translate-x-full'}`}
+        className={`fixed right-0 top-0 h-full w-96 bg-white shadow-lg transform transition-transform duration-300 ease-in-out z-[1001] flex flex-col ${isStopsPanelOpen ? 'translate-x-0' : 'translate-x-full'}`}
       >
         <div className="p-4 border-b border-gray-200 flex justify-between items-center">
           <h2 className="text-xl font-semibold text-black">Stop Order</h2>
@@ -926,23 +949,56 @@ const MapView = ({
             </svg>
           </button>
         </div>
+
+        {/* Original route toggle */}
+        {originalRoute && originalRoute.length > 0 && originalStops && originalStops.length > 0 && (
+          <div className="px-4 pt-3 pb-0">
+            <button
+              onClick={() => setShowOriginalRoute((v) => !v)}
+              className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium transition-colors border ${
+                showOriginalRoute
+                  ? 'bg-gray-100 border-gray-300 text-gray-700'
+                  : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'
+              }`}
+            >
+              <span>{showOriginalRoute ? 'Showing original order' : 'Show original route'}</span>
+              <span className="flex items-center gap-1.5">
+                <svg width="12" height="4" viewBox="0 0 12 4" className="shrink-0">
+                  <line x1="0" y1="2" x2="12" y2="2" stroke={showOriginalRoute ? '#ef4444' : '#9ca3af'} strokeWidth="2" strokeDasharray="3,2" />
+                </svg>
+              </span>
+            </button>
+          </div>
+        )}
+
         <div className="flex-1 overflow-y-auto p-4">
+          {showOriginalRoute && originalStops && originalStops.length > 0 && (
+            <p className="text-xs text-gray-400 mb-2 italic">Original unoptimized order</p>
+          )}
           <div className="space-y-2">
-            {formData.stops.map((stop: any, index: number) => {
-              const total = formData.stops.length;
+            {(showOriginalRoute && originalStops && originalStops.length > 0 ? originalStops : formData.stops).map((stop: any, index: number) => {
+              const displayList = showOriginalRoute && originalStops && originalStops.length > 0 ? originalStops : formData.stops;
+              const total = displayList.length;
               const isStart = index === 0;
               const isEnd = index === total - 1;
               const weightValue = stop.weightKg ? Number(stop.weightKg) : 0;
               return (
-                <div key={index} className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
-                  <div className={`w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0 mt-0.5 ${isStart ? 'bg-blue-500' : isEnd ? 'bg-red-500' : 'bg-orange-400'}`}>
+                <div
+                  key={index}
+                  className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg cursor-default"
+                  onMouseEnter={() => setHoveredStopIndex(index)}
+                  onMouseLeave={() => setHoveredStopIndex(null)}
+                >
+                  <div
+                    className={`w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0 mt-0.5 ${isStart ? 'bg-blue-500' : isEnd ? 'bg-red-500' : 'bg-orange-400'}`}
+                  >
                     {isStart ? 'S' : isEnd ? 'E' : index}
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm text-gray-800 leading-snug">{stop.location}</p>
-                    {weightValue > 0 && (
-                      <p className="text-xs text-[#034626] font-semibold mt-0.5">{weightValue} kg pickup</p>
-                    )}
+                    <p className={`text-xs mt-0.5 ${weightValue > 0 ? 'text-[#034626] font-semibold' : 'text-gray-400'}`}>
+                      {weightValue} kg pickup
+                    </p>
                   </div>
                 </div>
               );
@@ -951,15 +1007,15 @@ const MapView = ({
         </div>
       </div>
 
-      {/* Map legend component (assumed to explain marker colors) */}
-      <Legend />
+      <Legend showOriginalRoute={showOriginalRoute} />
 
-      {/* Slide-in analytics panel */}
       <AnalyticsPanel
         isOpen={isAnalyticsPanelOpen}
         onClose={() => setIsAnalyticsPanelOpen(false)}
         metrics={metrics}
         formData={formData}
+        imperial={imperial}
+        setImperial={setImperial}
       />
     </div>
   );

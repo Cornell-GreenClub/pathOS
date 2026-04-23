@@ -28,6 +28,7 @@ interface RouteMetrics {
   matrixRunId:          string | null;
   modelLoaded:          boolean | null;
   modelR2:              number | null;
+  originalRouteGeometry: any;
 }
 
 const presetRoute = {
@@ -209,10 +210,11 @@ const ExplorePage = () => {
   const [loadingMessage, setLoadingMessage] = useState('Optimizing...');
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [originalStops, setOriginalStops] = useState<any[]>([]);
   const [metrics, setMetrics] = useState<RouteMetrics>({
     distanceKm: null, durationMin: null, fuelLiters: null, co2Kg: null,
     originalDistanceKm: null, originalDurationMin: null, originalFuelLiters: null, originalCo2Kg: null,
-    matrixRunId: null, modelLoaded: null, modelR2: null,
+    matrixRunId: null, modelLoaded: null, modelR2: null, originalRouteGeometry: null,
   });
 
   // Add these computed values
@@ -344,6 +346,9 @@ const ExplorePage = () => {
         return;
       }
 
+      // Save original stop order before overwriting with optimized
+      setOriginalStops(formData.stops);
+
       // Update stops (order may have changed)
       setFormData((prev) => ({
         ...prev,
@@ -352,17 +357,18 @@ const ExplorePage = () => {
 
       // Store physics metrics from backend
       setMetrics({
-        distanceKm:          data.distanceKm          ?? null,
-        durationMin:         data.durationMin         ?? null,
-        fuelLiters:          data.fuelLiters          ?? null,
-        co2Kg:               data.co2Kg               ?? null,
-        originalDistanceKm:  data.originalDistanceKm  ?? null,
-        originalDurationMin: data.originalDurationMin ?? null,
-        originalFuelLiters:  data.originalFuelLiters  ?? null,
-        originalCo2Kg:       data.originalCo2Kg       ?? null,
-        matrixRunId:         data.matrixRunId         ?? null,
-        modelLoaded:         data.modelLoaded         ?? null,
-        modelR2:             data.modelR2             ?? null,
+        distanceKm:           data.distanceKm             ?? null,
+        durationMin:          data.durationMin            ?? null,
+        fuelLiters:           data.fuelLiters             ?? null,
+        co2Kg:                data.co2Kg                  ?? null,
+        originalDistanceKm:   data.originalDistanceKm     ?? null,
+        originalDurationMin:  data.originalDurationMin    ?? null,
+        originalFuelLiters:   data.originalFuelLiters     ?? null,
+        originalCo2Kg:        data.originalCo2Kg          ?? null,
+        matrixRunId:          data.matrixRunId            ?? null,
+        modelLoaded:          data.modelLoaded            ?? null,
+        modelR2:              data.modelR2                ?? null,
+        originalRouteGeometry: data.originalRouteGeometry ?? null,
       });
 
       // Update map route
@@ -719,6 +725,8 @@ const ExplorePage = () => {
               endCoords={endCoords}
               onBack={() => setIsMapView(false)}
               metrics={metrics}
+              originalRoute={metrics.originalRouteGeometry}
+              originalStops={originalStops}
             />
           )}
         </div>

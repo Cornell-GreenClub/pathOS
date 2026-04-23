@@ -283,6 +283,17 @@ def optimize_route():
                 f"{original_duration_min} min | {original_fuel_liters} L | {original_co2_kg} kg CO2"
             )
 
+            # Fetch geometry for original stop order (for frontend overlay)
+            original_route_geometry = None
+            try:
+                orig_route_url = format_route_url(stops, osrm_host)
+                orig_route_resp = requests.get(orig_route_url, timeout=10)
+                orig_route_data = orig_route_resp.json()
+                orig_coords = orig_route_data["routes"][0]["geometry"]["coordinates"]
+                original_route_geometry = [[c[1], c[0]] for c in orig_coords]
+            except Exception as orig_err:
+                logging.warning(f"Could not fetch original route geometry: {orig_err}")
+
             # --- Save matrices to pathos/data/ ---
             run_id = datetime.utcnow().strftime('%Y%m%d_%H%M%S') + f'_{n}stops'
             location_names = [s.get('location', f'Stop_{i}') for i, s in enumerate(stops)]
@@ -399,10 +410,11 @@ def optimize_route():
             "durationMin":          duration_min,
             "fuelLiters":           fuel_liters,
             "co2Kg":                co2_kg,
-            "originalDistanceKm":   original_distance_km  if not maintain_order else None,
-            "originalDurationMin":  original_duration_min if not maintain_order else None,
-            "originalFuelLiters":   original_fuel_liters  if not maintain_order else None,
-            "originalCo2Kg":        original_co2_kg       if not maintain_order else None,
+            "originalDistanceKm":      original_distance_km     if not maintain_order else None,
+            "originalDurationMin":     original_duration_min    if not maintain_order else None,
+            "originalFuelLiters":      original_fuel_liters     if not maintain_order else None,
+            "originalCo2Kg":           original_co2_kg          if not maintain_order else None,
+            "originalRouteGeometry":   original_route_geometry  if not maintain_order else None,
             "vehicleWeightKg":      vehicle_weight_kg,
             "fuelType":             fuel_type,
             "matrixRunId":          run_id if not maintain_order else None,
