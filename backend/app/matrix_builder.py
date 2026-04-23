@@ -150,7 +150,13 @@ class MatrixBuilder:
         """
         n = len(osrm_distances_m)
         fuel_type = fuel_type.lower()
-        fuel_correction = self.fuel_corrections.get(fuel_type, 1.0)
+        # Only apply passenger car fuel corrections (like 0.65 for diesel) to vehicles < 5000kg.
+        # Heavier vehicle classes already have betas trained natively on diesel.
+        
+        if vehicle_weight_kg < 5000:
+            fuel_correction = self.fuel_corrections.get(fuel_type, 1.0)
+        else:
+            fuel_correction = 1.0
 
         # OSRM meters → km, seconds → minutes
         dist_km  = [[osrm_distances_m[i][j] / 1000.0 for j in range(n)] for i in range(n)]
