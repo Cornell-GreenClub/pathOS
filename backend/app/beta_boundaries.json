@@ -3,36 +3,39 @@
     "diesel": 0.65,
     "gasoline": 1.0
   },
+
   "co2_kg_per_liter": {
     "diesel": 2.68,
     "gasoline": 2.31
   },
+
   "0_5k": {
-    "Intercept": 0,
-    "Total_Distance_km": 0,
-    "Dist_x_Weight": 0,
-    "Elev_x_Weight": 0,
-    "Dist_x_Speed2": 0
+    "Intercept": 0.0379,
+    "Total_Distance_km": 0.0539,
+    "Dist_x_Weight": 9.56e-06,
+    "Elev_x_Weight": 9.56e-07,
+    "Dist_x_Speed2": 3.45e-06
   },
   "5k_10k": {
-    "Intercept": 0.025024,
-    "Total_Distance_km": 0.06962583,
-    "Dist_x_Weight": 5.552431e-5,
-    "Elev_x_Weight": 2.55008e-6,
-    "Dist_x_Speed2": 1.102072e-6
+    "Intercept": 0.0000,
+    "Total_Distance_km": 0.1468,
+    "Dist_x_Weight": 3.91e-06,
+    "Elev_x_Weight": 6.52e-07,
+    "Dist_x_Speed2": 1.88e-05
   },
   "10k_20k": {
-    "Intercept": 0,
-    "Total_Distance_km": 0,
-    "Dist_x_Weight": 0,
-    "Elev_x_Weight": 0,
-    "Dist_x_Speed2": 0
+    "Intercept": 0.0000,
+    "Total_Distance_km": 0.2870,
+    "Dist_x_Weight": 3.91e-06,
+    "Elev_x_Weight": 6.52e-07,
+    "Dist_x_Speed2": 1.88e-05
   },
   "20k": {
-    "Intercept": 0,
-    "Total_Distance_km": 0,
-    "Dist_x_Weight": 0,
-    "Elev_x_Weight": 0,
-    "Dist_x_Speed2": 0
+    "Intercept": 2.7788,
+    "Total_Distance_km": 0.0101,
+    "Dist_x_Weight": 3.91e-06,
+    "Elev_x_Weight": 6.52e-07,
+    "Dist_x_Speed2": 1.88e-05
   }
+
 }
