@@ -723,7 +723,10 @@ const ExplorePage = () => {
               route={route}
               startCoords={startCoords}
               endCoords={endCoords}
-              onBack={() => setIsMapView(false)}
+              onBack={() => {
+                setFormData((prev) => ({ ...prev, stops: originalStops }));
+                setIsMapView(false);
+              }}
               metrics={metrics}
               originalRoute={metrics.originalRouteGeometry}
               originalStops={originalStops}
