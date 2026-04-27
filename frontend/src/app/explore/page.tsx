@@ -495,10 +495,11 @@ const ExplorePage = () => {
                   Sustainability
                 </span>
               </h1>
-              <p className="text-gray-600 text-sm italic -mt-6 mb-8 poppins-regular">
-                {/* *We currently only support routes within the state of New York */}
+              <div className="flex flex-col gap-1 text-gray-600 text-sm italic -mt-6 mb-8 poppins-regular text-center max-w-2xl px-4 mx-auto">
+                <p>We currently only support routes within the state of New York.</p>
+                <p>The first route optimization may take up to 100 seconds as the routing server warms up. Subsequent routes will typically complete in under 5 seconds.</p>
                 {/* *Backend is currently deactivated to reduce costs */}
-              </p>
+              </div>
               <form
                 onSubmit={handleSubmit}
                 className="w-full flex flex-col items-center gap-8"
@@ -659,6 +660,7 @@ const ExplorePage = () => {
                     The stops are in the order they are currently operating
                   </label>
                 </div>
+
                 {/* Vehicle Parameters */}
                 <div className="w-full flex flex-col gap-2 mt-2">
                   <h3 className="text-2xl text-center mb-2 text-gray-800 poppins-bold">

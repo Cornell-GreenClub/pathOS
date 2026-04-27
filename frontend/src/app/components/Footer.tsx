@@ -57,7 +57,7 @@ export default function Footer() {
           </h3>
           <ul className="text-base poppins-regular space-y-2">
             <li>
-              <Link
+              <a
                 href="mailto:pathos.earth@gmail.com"
                 className="hover:text-gray-800 transition-colors"
               >
@@ -67,12 +67,14 @@ export default function Footer() {
                   className="inline-block w-[32px] h-[32px] mr-2 align-text-bottom"
                 />
                 pathos.earth@gmail.com
-              </Link>
+              </a>
             </li>
             <li>
-              <Link
+              <a
                 href="https://www.instagram.com/joingreenclub"
                 className="hover:text-gray-800 transition-colors"
+                target="_blank"
+                rel="noopener noreferrer"
               >
                 <img
                   src="/icons/instagram.png"
@@ -80,12 +82,14 @@ export default function Footer() {
                   className="inline-block w-[32px] h-[32px] mr-2 align-text-bottom"
                 />
                 @joingreenclub
-              </Link>
+              </a>
             </li>
             <li>
-              <Link
+              <a
                 href="https://www.linkedin.com/company/cornellgreenclub/posts/?feedView=all"
                 className="hover:text-gray-800 transition-colors"
+                target="_blank"
+                rel="noopener noreferrer"
               >
                 <img
                   src="/icons/linkedin.png"
@@ -93,7 +97,7 @@ export default function Footer() {
                   className="inline-block w-[32px] h-[32px] mr-2 align-text-bottom"
                 />
                 Cornell GreenClub
-              </Link>
+              </a>
             </li>
           </ul>
         </div>
