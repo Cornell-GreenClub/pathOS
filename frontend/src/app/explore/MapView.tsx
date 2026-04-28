@@ -447,32 +447,30 @@ const AnalyticsPanel = ({ isOpen, onClose, metrics, formData, imperial, setImper
     <div
       className={`fixed right-0 top-0 h-full w-96 bg-white shadow-lg transform transition-transform duration-300 ease-in-out z-[1001] flex flex-col ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}
     >
-      {/* Header: title + unit toggle + close */}
+      {/* Header: title + close, with unit toggle underneath */}
       <div className="p-4 border-b border-gray-200">
         <div className="flex justify-between items-center">
           <h2 className="text-xl font-semibold text-black">Route Analytics</h2>
-          <div className="flex items-center gap-2">
-            {/* Metric/Imperial slider toggle — imperial state lives in MapView so the
-                metric pills in the top nav bar update at the same time */}
-            <div className="flex items-center gap-2">
-              <span className={`text-xs ${imperial ? 'text-gray-400' : 'text-[#034626] font-medium'}`}>Metric</span>
-              <button
-                onClick={() => setImperial((v: boolean) => !v)}
-                className={`relative w-9 h-5 rounded-full transition-colors duration-200 ${imperial ? 'bg-[#034626]' : 'bg-gray-300'}`}
-                aria-label="Toggle imperial units"
-              >
-                <span
-                  className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform duration-200 ${imperial ? 'translate-x-4' : 'translate-x-0'}`}
-                />
-              </button>
-              <span className={`text-xs ${imperial ? 'text-[#034626] font-medium' : 'text-gray-400'}`}>Imperial</span>
-            </div>
-            <button onClick={onClose} className="p-2">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
+          <button onClick={onClose} className="p-2">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        {/* Metric/Imperial slider toggle — imperial state lives in MapView so the
+            metric pills in the top nav bar update at the same time */}
+        <div className="mt-2 flex items-center gap-2">
+          <span className={`text-xs ${imperial ? 'text-gray-400' : 'text-[#034626] font-medium'}`}>Metric</span>
+          <button
+            onClick={() => setImperial((v: boolean) => !v)}
+            className={`relative w-9 h-5 rounded-full transition-colors duration-200 ${imperial ? 'bg-[#034626]' : 'bg-gray-300'}`}
+            aria-label="Toggle imperial units"
+          >
+            <span
+              className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform duration-200 ${imperial ? 'translate-x-4' : 'translate-x-0'}`}
+            />
+          </button>
+          <span className={`text-xs ${imperial ? 'text-[#034626] font-medium' : 'text-gray-400'}`}>Imperial</span>
         </div>
       </div>
 
