@@ -644,22 +644,6 @@ const ExplorePage = () => {
                     Load sample schools route
                   </button>
                 </div>
-                <div className="flex items-center w-full -mt-4 mb-4">
-                  <input
-                    id="maintainOrder"
-                    type="checkbox"
-                    name="maintainOrder"
-                    checked={formData.maintainOrder}
-                    onChange={handleInputChange}
-                    className="mr-2 w-4 h-4 accent-[#034626] border-[#034626] rounded focus:ring-2 focus:ring-[#034626] transition-transform duration-150 hover:scale-110 focus:scale-110 cursor-pointer"
-                  />
-                  <label
-                    htmlFor="maintainOrder"
-                    className="text-gray-600 text-base text-[16px] cursor-pointer"
-                  >
-                    The stops are in the order they are currently operating
-                  </label>
-                </div>
 
                 {/* Vehicle Parameters */}
                 <div className="w-full flex flex-col gap-2 mt-2">
