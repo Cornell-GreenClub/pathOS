@@ -34,16 +34,25 @@ import L from 'leaflet';
 // to imperial only at display time so toggling the switch is a pure UI change.
 //
 //   toEff: L/100km → MPG via the identity  MPG = 235.214 / (L/100km)
+const KM_TO_MI = 0.621371;
+const L_TO_GAL = 0.264172;
+const KG_TO_LB = 2.20462;
+const TREE_CO2_KG_PER_YEAR = 21;
+const CAR_CO2_KG_PER_KM = 0.12;
+const DIESEL_COST_PER_L = 1.5;
+
 const toDistance = (km: number | null, imp: boolean) =>
-  km == null ? null : imp ? +(km * 0.621371).toFixed(2) : km;
+  km == null ? null : imp ? +(km * KM_TO_MI).toFixed(2) : km;
 const toFuel = (L_: number | null, imp: boolean) =>
-  L_ == null ? null : imp ? +(L_ * 0.264172).toFixed(2) : L_;
+  L_ == null ? null : imp ? +(L_ * L_TO_GAL).toFixed(2) : L_;
 const toWeight = (kg: number | null, imp: boolean) =>
-  kg == null ? null : imp ? +(kg * 2.20462).toFixed(1) : kg;
+  kg == null ? null : imp ? +(kg * KG_TO_LB).toFixed(1) : kg;
 const toEff = (fuelL: number, distKm: number, imp: boolean) =>
   imp
     ? +((235.214 / ((fuelL / distKm) * 100)).toFixed(1))
     : +((fuelL / distKm) * 100).toFixed(1);
+const formatNumber = (value: number, maxFractionDigits = 2) =>
+  value.toLocaleString(undefined, { maximumFractionDigits: maxFractionDigits });
 
 // Leaflet's default icon resolution breaks in Next.js because webpack renames
 // asset files. Pointing to the CDN copies avoids the missing-icon bug.
@@ -254,6 +263,11 @@ const AnalyticsPanel = ({ isOpen, onClose, metrics, formData, imperial, setImper
   const dispOrigFuelL  = toFuel(metrics?.originalFuelLiters, imperial);
   const dispCo2Kg      = toWeight(metrics?.co2Kg, imperial);
   const dispOrigCo2Kg  = toWeight(metrics?.originalCo2Kg, imperial);
+  const treeCo2PerYear = toWeight(TREE_CO2_KG_PER_YEAR, imperial);
+  const carCo2PerDistance = imperial
+    ? +((CAR_CO2_KG_PER_KM * KG_TO_LB) / KM_TO_MI).toFixed(2)
+    : CAR_CO2_KG_PER_KM;
+  const fuelCostPerUnit = imperial ? DIESEL_COST_PER_L / L_TO_GAL : DIESEL_COST_PER_L;
 
   const fuelSavedPct =
     hasOriginal && metrics.originalFuelLiters > 0
@@ -270,6 +284,20 @@ const AnalyticsPanel = ({ isOpen, onClose, metrics, formData, imperial, setImper
     if (min >= 60) return `${Math.floor(min / 60)}h ${Math.round(min % 60)}m`;
     return `${Math.round(min)}m`;
   };
+
+  const treesTooltip = (co2Kg: number, action: 'emitted' | 'saved') =>
+    `${formatNumber(toWeight(co2Kg, imperial)!, 1)} ${weightUnit} CO₂ ${action} ÷ ${treeCo2PerYear} ${weightUnit}/tree/yr = ${(Math.round(co2Kg / TREE_CO2_KG_PER_YEAR * 10) / 10).toFixed(1)} trees${action === 'emitted' ? ' needed to offset' : ''}.`;
+
+  const carTooltip = (co2Kg: number, action: 'equivalent' | 'avoided') =>
+    `${formatNumber(toWeight(co2Kg, imperial)!, 1)} ${weightUnit} CO₂ ÷ ${carCo2PerDistance} ${weightUnit} CO₂/${distUnit} = ${formatNumber(toDistance(co2Kg / CAR_CO2_KG_PER_KM, imperial)!, imperial ? 2 : 0)} ${distUnit} ${action}. Based on avg passenger car emitting ${imperial ? '0.43 lb CO₂/mi' : '120 g CO₂/km'}.`;
+
+  const fuelCostTooltip = (fuelL: number, label = '') =>
+    `${formatNumber(toFuel(fuelL, imperial)!, 2)} ${fuelUnit}${label} × $${fuelCostPerUnit.toFixed(2)}/${fuelUnit} = $${(Math.round(fuelL * DIESEL_COST_PER_L * 100) / 100).toFixed(2)}.`;
+
+  const fuelEfficiencyTooltip = (fuelL: number, distKm: number, label: string) =>
+    imperial
+      ? `${label}: ${toFuel(fuelL, true)} gal over ${toDistance(distKm, true)} mi = ${toEff(fuelL, distKm, true)} MPG.`
+      : `${label}: ${fuelL} L ÷ ${distKm} km × 100 = ${toEff(fuelL, distKm, false)} L/100km.`;
 
   // Builds a Google Maps directions URL for the ordered stop list.
   // First stop = origin, last = destination, middle stops = waypoints.
@@ -424,10 +452,10 @@ const AnalyticsPanel = ({ isOpen, onClose, metrics, formData, imperial, setImper
         <div className="flex justify-between items-center">
           <h2 className="text-xl font-semibold text-black">Route Analytics</h2>
           <div className="flex items-center gap-2">
-            {/* km/mi slider toggle — imperial state lives in MapView so the
+            {/* Metric/Imperial slider toggle — imperial state lives in MapView so the
                 metric pills in the top nav bar update at the same time */}
-            <div className="flex items-center gap-1.5">
-              <span className="text-xs text-gray-400">km</span>
+            <div className="flex items-center gap-2">
+              <span className={`text-xs ${imperial ? 'text-gray-400' : 'text-[#034626] font-medium'}`}>Metric</span>
               <button
                 onClick={() => setImperial((v: boolean) => !v)}
                 className={`relative w-9 h-5 rounded-full transition-colors duration-200 ${imperial ? 'bg-[#034626]' : 'bg-gray-300'}`}
@@ -437,7 +465,7 @@ const AnalyticsPanel = ({ isOpen, onClose, metrics, formData, imperial, setImper
                   className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform duration-200 ${imperial ? 'translate-x-4' : 'translate-x-0'}`}
                 />
               </button>
-              <span className="text-xs text-gray-400">mi</span>
+              <span className={`text-xs ${imperial ? 'text-[#034626] font-medium' : 'text-gray-400'}`}>Imperial</span>
             </div>
             <button onClick={onClose} className="p-2">
               <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -636,16 +664,16 @@ const AnalyticsPanel = ({ isOpen, onClose, metrics, formData, imperial, setImper
                           <div className="flex justify-between items-center">
                             <span className="text-blue-700 text-xs flex items-center">
                               Trees to offset CO₂
-                              <InfoTip text={`${metrics.originalCo2Kg} kg CO₂ emitted ÷ 21 kg/tree/yr = ${(Math.round(metrics.originalCo2Kg / 21 * 10) / 10).toFixed(1)} trees needed to offset.`} />
+                              <InfoTip text={treesTooltip(metrics.originalCo2Kg, 'emitted')} />
                             </span>
-                            <span className="font-semibold text-blue-900 text-sm">{(Math.round(metrics.originalCo2Kg / 21 * 10) / 10).toFixed(1)}</span>
+                            <span className="font-semibold text-blue-900 text-sm">{(Math.round(metrics.originalCo2Kg / TREE_CO2_KG_PER_YEAR * 10) / 10).toFixed(1)}</span>
                           </div>
                           <div className="flex justify-between items-center">
                             <span className="text-blue-700 text-xs flex items-center">
                               Equivalent car {distUnit} driven
-                              <InfoTip text={`${metrics.originalCo2Kg} kg CO₂ ÷ 0.12 kg CO₂/km = ${Math.round(metrics.originalCo2Kg / 0.12)} km equivalent.`} />
+                              <InfoTip text={carTooltip(metrics.originalCo2Kg, 'equivalent')} />
                             </span>
-                            <span className="font-semibold text-blue-900 text-sm">{toDistance(Math.round(metrics.originalCo2Kg / 0.12), imperial)} {distUnit}</span>
+                            <span className="font-semibold text-blue-900 text-sm">{toDistance(Math.round(metrics.originalCo2Kg / CAR_CO2_KG_PER_KM), imperial)} {distUnit}</span>
                           </div>
                         </>
                       )}
@@ -653,16 +681,16 @@ const AnalyticsPanel = ({ isOpen, onClose, metrics, formData, imperial, setImper
                         <div className="flex justify-between items-center">
                           <span className="text-blue-700 text-xs flex items-center">
                             Est. fuel cost
-                            <InfoTip text={`${metrics.originalFuelLiters} L × $1.50/L = $${(Math.round(metrics.originalFuelLiters * 1.5 * 100) / 100).toFixed(2)}.`} />
+                            <InfoTip text={fuelCostTooltip(metrics.originalFuelLiters)} />
                           </span>
-                          <span className="font-semibold text-blue-900 text-sm">${(Math.round(metrics.originalFuelLiters * 1.5 * 100) / 100).toFixed(2)}</span>
+                          <span className="font-semibold text-blue-900 text-sm">${(Math.round(metrics.originalFuelLiters * DIESEL_COST_PER_L * 100) / 100).toFixed(2)}</span>
                         </div>
                       )}
                       {metrics.originalFuelLiters != null && metrics.originalDistanceKm != null && metrics.originalDistanceKm > 0 && (
                         <div className="flex justify-between items-center">
                           <span className="text-blue-700 text-xs flex items-center">
                             Original fuel efficiency
-                            <InfoTip text={`Original route: ${toEff(metrics.originalFuelLiters, metrics.originalDistanceKm, imperial)} ${effLabel}.`} />
+                            <InfoTip text={fuelEfficiencyTooltip(metrics.originalFuelLiters, metrics.originalDistanceKm, 'Original route')} />
                           </span>
                           <span className="font-semibold text-blue-900 text-sm">{toEff(metrics.originalFuelLiters, metrics.originalDistanceKm, imperial)} {effLabel}</span>
                         </div>
@@ -678,16 +706,16 @@ const AnalyticsPanel = ({ isOpen, onClose, metrics, formData, imperial, setImper
                           <div className="flex justify-between items-center">
                             <span className="text-blue-700 text-xs flex items-center">
                               Trees absorbing CO₂ for 1 year
-                              <InfoTip text={`${co2SavedRaw} kg CO₂ saved ÷ 21 kg/tree/yr = ${(Math.round(co2SavedRaw / 21 * 10) / 10).toFixed(1)} trees. Source: US Forest Service.`} />
+                              <InfoTip text={`${treesTooltip(co2SavedRaw, 'saved')} Source: US Forest Service.`} />
                             </span>
-                            <span className="font-semibold text-blue-900 text-sm">{(Math.round(co2SavedRaw / 21 * 10) / 10).toFixed(1)}</span>
+                            <span className="font-semibold text-blue-900 text-sm">{(Math.round(co2SavedRaw / TREE_CO2_KG_PER_YEAR * 10) / 10).toFixed(1)}</span>
                           </div>
                           <div className="flex justify-between items-center">
                             <span className="text-blue-700 text-xs flex items-center">
                               Equivalent car {distUnit} avoided
-                              <InfoTip text={`${co2SavedRaw} kg CO₂ saved ÷ 0.12 kg CO₂/km = ${Math.round(co2SavedRaw / 0.12)} km avoided. Based on avg passenger car emitting 120 g CO₂/km.`} />
+                              <InfoTip text={carTooltip(co2SavedRaw, 'avoided')} />
                             </span>
-                            <span className="font-semibold text-blue-900 text-sm">{toDistance(Math.round(co2SavedRaw / 0.12), imperial)} {distUnit}</span>
+                            <span className="font-semibold text-blue-900 text-sm">{toDistance(Math.round(co2SavedRaw / CAR_CO2_KG_PER_KM), imperial)} {distUnit}</span>
                           </div>
                         </>
                       )}
@@ -695,16 +723,16 @@ const AnalyticsPanel = ({ isOpen, onClose, metrics, formData, imperial, setImper
                         <div className="flex justify-between items-center">
                           <span className="text-blue-700 text-xs flex items-center">
                             Est. fuel cost saved
-                            <InfoTip text={`${fuelSavedRaw} L saved × $1.50/L = $${(Math.round(fuelSavedRaw * 1.5 * 100) / 100).toFixed(2)}. Uses US average diesel price of ~$1.50/L.`} />
+                            <InfoTip text={`${fuelCostTooltip(fuelSavedRaw, ' saved')} Uses US average diesel price of ~$${fuelCostPerUnit.toFixed(2)}/${fuelUnit}.`} />
                           </span>
-                          <span className="font-semibold text-blue-900 text-sm">${(Math.round(fuelSavedRaw * 1.5 * 100) / 100).toFixed(2)}</span>
+                          <span className="font-semibold text-blue-900 text-sm">${(Math.round(fuelSavedRaw * DIESEL_COST_PER_L * 100) / 100).toFixed(2)}</span>
                         </div>
                       )}
                       {metrics.fuelLiters != null && metrics.distanceKm != null && metrics.distanceKm > 0 && (
                         <div className="flex justify-between items-center">
                           <span className="text-blue-700 text-xs flex items-center">
                             Optimized fuel efficiency
-                            <InfoTip text={`${metrics.fuelLiters} L ÷ ${metrics.distanceKm} km × 100 = ${toEff(metrics.fuelLiters, metrics.distanceKm, imperial)} ${effLabel}.`} />
+                            <InfoTip text={fuelEfficiencyTooltip(metrics.fuelLiters, metrics.distanceKm, 'Optimized route')} />
                           </span>
                           <span className="font-semibold text-blue-900 text-sm">{toEff(metrics.fuelLiters, metrics.distanceKm, imperial)} {effLabel}</span>
                         </div>
@@ -725,7 +753,7 @@ const AnalyticsPanel = ({ isOpen, onClose, metrics, formData, imperial, setImper
                           </div>
                           <div className="flex justify-between items-center">
                             <span className="text-blue-700 text-xs">Annual cost saved</span>
-                            <span className="font-semibold text-blue-900 text-sm">${(Math.round(fuelSavedRaw * 260 * 1.5 * 100) / 100).toFixed(2)}</span>
+                            <span className="font-semibold text-blue-900 text-sm">${(Math.round(fuelSavedRaw * 260 * DIESEL_COST_PER_L * 100) / 100).toFixed(2)}</span>
                           </div>
                         </>
                       ) : null}
@@ -739,7 +767,7 @@ const AnalyticsPanel = ({ isOpen, onClose, metrics, formData, imperial, setImper
                           </div>
                           <div className="flex justify-between items-center">
                             <span className="text-blue-700 text-xs">Annual trees equivalent</span>
-                            <span className="font-semibold text-blue-900 text-sm">{(Math.round(co2SavedRaw * 260 / 21 * 10) / 10).toFixed(1)}</span>
+                            <span className="font-semibold text-blue-900 text-sm">{(Math.round(co2SavedRaw * 260 / TREE_CO2_KG_PER_YEAR * 10) / 10).toFixed(1)}</span>
                           </div>
                         </>
                       ) : null}
@@ -855,6 +883,12 @@ const MapView = ({
 
   const distUnit = imperial ? 'mi' : 'km';
   const fuelUnit = imperial ? 'gal' : 'L';
+  const weightUnit = imperial ? 'lbs' : 'kg';
+  const displayStops =
+    showOriginalRoute && originalStops && originalStops.length > 0
+      ? originalStops
+      : formData.stops;
+  const displayMode = showOriginalRoute && originalStops && originalStops.length > 0 ? 'original' : 'optimized';
 
   return (
     <div className="fixed inset-0 flex">
@@ -876,21 +910,22 @@ const MapView = ({
               Leaflet re-creates the DivIcon) when hover state changes.
               Without the key trick, Leaflet caches the icon and ignores
               prop updates to the icon object. */}
-          {formData.stops.map(
+          {displayStops.map(
             (
               stop: { location: string; coords: { lat: number; lng: number }; weightKg?: number },
               index: number
             ) => {
               if (!stop.coords) return null;
-              const total = formData.stops.length;
+              const total = displayStops.length;
               const isStart = index === 0;
               const isEnd = index === total - 1;
               const weightValue = stop.weightKg ? Number(stop.weightKg) : 0;
+              const displayWeight = toWeight(weightValue, imperial);
               const isHovered = hoveredStopIndex === index;
 
               return (
                 <Marker
-                  key={`${index}-${isHovered}`}
+                  key={`${displayMode}-${index}-${isHovered}`}
                   position={[stop.coords.lat, stop.coords.lng]}
                   icon={createMarkerIcon(index, total, isHovered)}
                 >
@@ -902,7 +937,7 @@ const MapView = ({
                       </div>
                       {/* Always show weight — green for non-zero, gray for 0 */}
                       <div className={`text-xs mt-0.5 ${weightValue > 0 ? 'text-[#034626] font-extrabold' : 'text-gray-400'}`}>
-                        {weightValue} kg pickup
+                        {displayWeight} {weightUnit} pickup
                       </div>
                     </div>
                   </Tooltip>
@@ -919,7 +954,7 @@ const MapView = ({
                       {weightValue > 0 && (
                         <div className="bg-green-50 border border-green-100 rounded-md p-2 flex justify-between items-center">
                           <span className="text-[11px] text-green-800 font-semibold tracking-wide uppercase">Pickup Weight</span>
-                          <span className="text-sm text-green-900 font-bold">{weightValue} kg</span>
+                          <span className="text-sm text-green-900 font-bold">{displayWeight} {weightUnit}</span>
                         </div>
                       )}
                     </div>
@@ -1013,9 +1048,9 @@ const MapView = ({
               {metrics.co2Kg != null && (
                 <div className="bg-white rounded-lg px-3 py-2 shadow-lg text-sm font-medium">
                   <span className="text-gray-500">CO₂&nbsp;</span>
-                  <span className="text-[#034626] font-bold">{dispCo2} kg</span>
+                  <span className="text-[#034626] font-bold">{dispCo2} {weightUnit}</span>
                   {dispCo2Saved != null && co2SavedRaw! > 0 && (
-                    <span className="text-blue-600 text-xs ml-1">↓{dispCo2Saved} kg</span>
+                    <span className="text-blue-600 text-xs ml-1">↓{dispCo2Saved} {weightUnit}</span>
                   )}
                 </div>
               )}
@@ -1104,20 +1139,15 @@ const MapView = ({
             <p className="text-xs text-gray-400 mb-2 italic">Original unoptimized order</p>
           )}
           <div className="space-y-2">
-            {(showOriginalRoute && originalStops && originalStops.length > 0
-              ? originalStops
-              : formData.stops
-            ).map((stop: any, index: number) => {
-              const displayList = showOriginalRoute && originalStops?.length > 0
-                ? originalStops
-                : formData.stops;
-              const total = displayList.length;
+            {displayStops.map((stop: any, index: number) => {
+              const total = displayStops.length;
               const isStart = index === 0;
               const isEnd = index === total - 1;
               const weightValue = stop.weightKg ? Number(stop.weightKg) : 0;
+              const displayWeight = toWeight(weightValue, imperial);
               return (
                 <div
-                  key={index}
+                  key={`${displayMode}-${index}`}
                   className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg cursor-default"
                   onMouseEnter={() => setHoveredStopIndex(index)}
                   onMouseLeave={() => setHoveredStopIndex(null)}
@@ -1131,7 +1161,7 @@ const MapView = ({
                     <p className="text-sm text-gray-800 leading-snug">{stop.location}</p>
                     {/* Green for non-zero weight, gray for 0 — always shown */}
                     <p className={`text-xs mt-0.5 ${weightValue > 0 ? 'text-[#034626] font-semibold' : 'text-gray-400'}`}>
-                      {weightValue} kg pickup
+                      {displayWeight} {weightUnit} pickup
                     </p>
                   </div>
                 </div>
