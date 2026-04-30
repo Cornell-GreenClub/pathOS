@@ -33,6 +33,8 @@ The backend predicts fuel usage based on the fundamental physics of motor vehicl
     $$Fuel (L) = 0.038 + 0.053(Distance) + 9.56 \times 10^{-5}(Distance \times Weight) + 9.56 \times 10^{-7}(Elevation \times Weight) + 3.45 \times 10^{-9}(Distance \times Speed^{2})$$
 * **Validation**: Trained on the eVED Dataset (9,500 real-world routes) with an average error of $\pm 150$ mL per trip ($R^{2} = 0.907$).
 
+<img width="956" height="556" alt="pathos-graphic" src="https://github.com/user-attachments/assets/21adbe27-9677-4750-ba95-6d34acbe75dc" />
+
 ---
 
 ## 3. Hosting & Infrastructure
