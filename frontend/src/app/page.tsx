@@ -101,7 +101,7 @@ export default function HomePage() {
                       Visualize
                     </h2>
                     <p className="mt-2 text-xl poppins-medium text-gray-700">
-                      Obtain a bird's eye view of your current logistics and 
+                      Obtain a bird&apos;s eye view of your current logistics and 
                       transportation routes
                     </p>
                   </div>

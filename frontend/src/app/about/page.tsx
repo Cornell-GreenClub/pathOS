@@ -22,7 +22,7 @@ const AboutPage = () => {
               pathOS is a student-led project at Cornell University driven by a shared goal: 
               quantify and optimize transportation emissions. What began as a 
               class project is now a platform ready to make a real-world impact by bridging 
-              the data gap in Ithaca’s Green New Deal.
+              the data gap in Ithaca&apos;s Green New Deal.
             </p>
           </div>
 
