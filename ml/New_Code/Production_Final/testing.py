@@ -19,6 +19,8 @@ from typing import List, Dict, Optional, Tuple
 # ============================================================
 # VEHICLE CLASS COEFFICIENTS
 # ============================================================
+# These coefficients are derived from physics-based regression on real vehicle data.
+# Each vehicle class has different coefficients reflecting its weight, drag, and efficiency.
 
 VEHICLE_CLASSES = {
     'passenger_car': {
@@ -197,7 +199,10 @@ def calculate_route_fuel(
 ) -> Tuple[float, List[Dict]]:
     """
     Calculate total fuel for a route with dynamic weight accumulation.
-    
+
+    This is the core calculation for load-aware VRP (Vehicle Routing Problem).
+    Weight increases as pickups are made, affecting fuel consumption on subsequent legs.
+
     Args:
         route: List of stop indices in order (e.g., [0, 1, 2, 3, 0])
         stop_weights: Dict mapping stop index to pickup weight (kg)
@@ -206,26 +211,28 @@ def calculate_route_fuel(
         speed_matrix: NxN average speed matrix (km/h)
         base_weight_kg: Starting vehicle weight (empty)
         vehicle_class: Vehicle class key
-    
+
     Returns:
         Tuple of (total_fuel_liters, leg_details)
     """
     total_fuel = 0.0
     current_weight = base_weight_kg
     leg_details = []
-    
+
+    # Iterate through each leg of the route (stop i -> stop i+1)
     for i in range(len(route) - 1):
         origin = route[i]
         dest = route[i + 1]
-        
+
+        # Look up pre-computed values from matrices
         dist = distance_matrix[origin][dest]
         elev = elevation_matrix[origin][dest]
         speed = speed_matrix[origin][dest]
-        
-        # Predict fuel for this leg
+
+        # Predict fuel for this leg using current weight
         fuel = predict_fuel(dist, elev, speed, current_weight, vehicle_class)
         total_fuel += fuel
-        
+
         leg_details.append({
             'leg': i + 1,
             'from': origin,
@@ -236,11 +243,11 @@ def calculate_route_fuel(
             'weight_kg': current_weight,
             'fuel_L': fuel,
         })
-        
-        # Add pickup weight at destination
+
+        # Weight increases after pickup at destination (load-aware routing)
         pickup = stop_weights.get(dest, 0)
         current_weight += pickup
-    
+
     return total_fuel, leg_details
 
 
@@ -292,14 +299,17 @@ def print_route_summary(
 # ============================================================
 # EXAMPLE / TEST
 # ============================================================
+# This section demonstrates how to use the route fuel calculator.
+# Replace the example matrices with actual data from FuelMatrixBuilder.
 
 if __name__ == "__main__":
-    
+
     # === CONFIGURATION ===
     VEHICLE_CLASS = 'school_bus_type_c'
-    BASE_WEIGHT_KG = 9000  # Empty vehicle weight
-    
+    BASE_WEIGHT_KG = 9000  # Empty vehicle weight (curb weight)
+
     # === STOP LABELS ===
+    # Human-readable names for each stop index
     LABELS = [
         "TST BOCES Depot",           # 0
         "DeWitt Middle",             # 1
@@ -309,16 +319,19 @@ if __name__ == "__main__":
     ]
     
     # === STOP PICKUP WEIGHTS (kg) ===
+    # Maps stop index -> weight picked up at that stop
+    # These weights accumulate as the route progresses (load-aware VRP)
     STOP_WEIGHTS = {
-        0: 0,        # Depot - no pickup
-        1: 514.31,   # DeWitt Middle
+        0: 0,        # Depot - no pickup (starting point)
+        1: 514.31,   # DeWitt Middle - food cargo weight
         2: 326.53,   # Northeast Elementary
         3: 251.81,   # Cayuga Heights Elementary
         4: 240.97,   # Belle Sherman Elementary
     }
-    
+
     # === EXAMPLE MATRICES (replace with actual data) ===
-    # These are placeholder values - use actual matrices from FuelMatrixBuilder
+    # These are placeholder values for demonstration.
+    # In production, use actual matrices from FuelMatrixBuilder.build_matrix()
     
     DISTANCE_MATRIX = [
         [0.0,  0.5,  3.2,  4.1,  5.3],
@@ -345,9 +358,10 @@ if __name__ == "__main__":
     ]
     
     # === ROUTE ORDER ===
-    # Depot -> Stop 1 -> Stop 2 -> Stop 3 -> Stop 4 -> Depot
+    # Route as list of stop indices. Must start and end at depot (index 0).
+    # Example: Depot -> Stop 1 -> Stop 2 -> Stop 3 -> Stop 4 -> Depot
     ROUTE = [0, 1, 2, 3, 4, 0]
-    
+
     # === CALCULATE ===
     print(f"Vehicle: {VEHICLE_CLASSES[VEHICLE_CLASS]['name']}")
     print(f"Base weight: {BASE_WEIGHT_KG:,} kg")
@@ -365,12 +379,17 @@ if __name__ == "__main__":
     print_route_summary(ROUTE, total_fuel, legs, LABELS)
     
     # === COMPARE DIFFERENT ROUTE ORDERS ===
+    # You can test multiple route permutations to find the most fuel-efficient order.
+    # The optimizer (RouteOptimizer) does this automatically using TSP + simulated annealing.
     print("\n" + "=" * 70)
     print("COMPARING ROUTE ORDERS")
     print("=" * 70)
-    
+
     routes_to_test = [
-        [0, 1, 2, 3, 4, 0],  # Original
+        [0, 1, 2, 3, 4, 0],  # Original order
+        # Add more permutations here to compare, e.g.:
+        # [0, 4, 3, 2, 1, 0],  # Reversed
+        # [0, 2, 4, 1, 3, 0],  # Alternative
     ]
     
     print(f"\n{'Route':<25} {'Fuel (L)':<12} {'Fuel (gal)':<12}")
