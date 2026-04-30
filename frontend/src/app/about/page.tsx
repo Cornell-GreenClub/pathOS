@@ -14,21 +14,22 @@ const AboutPage = () => {
               <span className="pathos-green"> Waste Transport</span>
             </h1>
             <p className="poppins-regular text-xl text-gray-700 pt-[30px]">
-              pathOS is a student-led project driven by a shared goal: reducing
-              waste emissions through smarter routing.
+              Food transportation produces 18.2 million tonnes of CO<sub>2</sub> emissions annually. 
+              K-12 schools are the largest source of institutional food waste, yet many organizations 
+              lack the tools to rigorously determine the optimal stop ordering for their routes.
               <br />
               <br />
-              Our interdisciplinary team comes together to build a tool that is
-              easy to use, grounded in data, and tailored for institutional
-              decision-making. What began as a class project is now a platform
-              ready to make a real-world impact.
+              pathOS is a student-led project at Cornell University driven by a shared goal: 
+              quantify and optimize transportation emissions. What began as a 
+              class project is now a platform ready to make a real-world impact by bridging 
+              the data gap in Ithaca’s Green New Deal.
             </p>
           </div>
 
           <div className="w-full md:w-1/2 p-4 flex items-center justify-center">
             <img
               src="/images/pathos-subteam.jpg"
-              alt="Temporary Image"
+              alt="pathOS Team"
               className="max-w-full h-auto transform transition-all duration-300 hover:scale-105"
             />
           </div>
@@ -39,7 +40,7 @@ const AboutPage = () => {
           <div className="w-full md:w-1/2 p-4 flex items-center justify-center">
             <img
               src="/images/pathos-graphic.png"
-              alt="Temporary Image"
+              alt="Optimization Logic"
               className="max-w-full h-auto transform transition-all duration-300 hover:scale-105"
             />
           </div>
@@ -51,18 +52,20 @@ const AboutPage = () => {
               Actionable
             </h1>
             <p className="poppins-regular text-xl text-gray-700 pt-[30px]">
-              We’re building a web-based routing tool that optimizes fuel
-              consumption for waste transportation routes. Our custom back-end
-              connects user inputs to an optimization model, generating
-              emissions-reducing routes under real-world constraints.
+              We’re building a web-based routing tool that optimizes fuel consumption for 
+              transportation routes. While standard tools like Google Maps optimize point-to-point routing, 
+              pathOS optimizes the order of the stops and accounts for real-world 
+              factors like weight accumulation.
               <br />
               <br />
-              Every component is purpose-built for institutional users looking
-              to cut carbon emissions without impacting operations.
+              Every component is purpose-built for institutional users looking to cut carbon 
+              emissions and increase efficiency without impacting operations. Our goal is to reduce stakeholder emissions 
+              by 10%, saving thousands of tonnes of CO<sub>2</sub> annually.
             </p>
           </div>
         </section>
       </div>
+
       {/* Section 3 */}
       <section
         className="flex flex-col justify-center mt-[45px]"
@@ -79,68 +82,68 @@ const AboutPage = () => {
           </h1>
           <p className="poppins-regular text-xl text-gray-700 pt-[20px] text-center">
             A modular, data-driven platform for emissions-optimized <br />
-            routing using live stakeholder inputs
+            routing using fundamental physics and metaheuristics.
           </p>
         </div>
       </section>
 
-      {/* Section 3 — Icons (outside the gradient) */}
+      {/* Section 3 — Icons */}
       <section className="flex flex-col md:flex-row justify-center items-center pt-[20px] pb-[180px] gap-x-1">
-        <div className="w-1/3 flex flex-col items-center justify-center">
+        <div className="w-1/3 flex flex-col items-center justify-center px-4">
           <img
             className="w-[75px] h-[75px]"
             src="/icons/backend.png"
             alt="Backend Icon"
           />
           <h3 className="poppins-semibold text-2xl text-gray-800 pt-[20px] pb-[10px] text-center">
-            Backend
+            Simulated
             <br />
-            Optimization
+            Annealing
           </h3>
           <p className="poppins-regular text-lg text-gray-700 text-center">
-            Flask handles requests, formats inputs,
+            Utilizes Simulated Annealing to account 
             <br />
-            and executes route solving
+            for weight accumulation, achieving 
             <br />
-            via Google OR-Tools
+            100% success on test routes.
           </p>
         </div>
-        <div className="w-1/3 flex flex-col items-center justify-center">
+        <div className="w-1/3 flex flex-col items-center justify-center px-4">
           <img
             className="w-[75px] h-[75px]"
             src="/icons/fuel.png"
             alt="Fuel Icon"
           />
           <h3 className="poppins-semibold text-2xl text-gray-800 pt-[20px] pb-[10px] text-center">
-            Custom
+            Fuel Consumption 
             <br />
-            Cost Modeling
+            Modeling
           </h3>
           <p className="poppins-regular text-lg text-gray-700 text-center">
-            Routing logic model accounts for fuel usage,
+            Predicts consumption using drag, grade, 
             <br />
-            distance, brand route-specific
+            and friction with an average error 
             <br />
-            operational constraints
+            of only 150 mL per trip.
           </p>
         </div>
-        <div className="w-1/3 flex flex-col items-center justify-center">
+        <div className="w-1/3 flex flex-col items-center justify-center px-4">
           <img
             className="w-[75px] h-[75px]"
             src="/icons/map.png"
             alt="Map Icon"
           />
           <h3 className="poppins-semibold text-2xl text-gray-800 pt-[20px] pb-[10px] text-center">
-            Live-Updating
+            Open Source
             <br />
-            Map Interface
+            Routing Machine
           </h3>
           <p className="poppins-regular text-lg text-gray-700 text-center">
-            Results are visualized through a responsive
+            Powered by AWS "Wake on Demand" 
             <br />
-            Next.js frontend with real-time
+            architecture, slashing operating 
             <br />
-            map updates
+            costs by 90%.
           </p>
         </div>
       </section>

@@ -26,7 +26,7 @@ export default function HomePage() {
                 </div>
               </h1>
               <p className="text-xl text-gray-700 animate-fade-in-up">
-                Driving change with data: Smarter transport, lower
+                Driving change with data: smarter transport, lower
                 <br />
                 emissions, lasting impact
               </p>
@@ -101,8 +101,8 @@ export default function HomePage() {
                       Visualize
                     </h2>
                     <p className="mt-2 text-xl poppins-medium text-gray-700">
-                      Gain a comprehensive view of the transportation
-                      infrastructure in your area
+                      Obtain a bird's eye view of your current logistics and 
+                      transportation routes
                     </p>
                   </div>
                 </div>
@@ -125,8 +125,7 @@ export default function HomePage() {
                       Analyze
                     </h2>
                     <p className="mt-2 text-xl poppins-medium text-gray-700">
-                      Identify bottlenecks, alternative routes, and
-                      opportunities for optimization
+                      Quantify your footprint using our physics-based fuel consumption model
                     </p>
                   </div>
                 </div>
@@ -149,8 +148,7 @@ export default function HomePage() {
                       Optimize
                     </h2>
                     <p className="mt-2 text-xl poppins-medium text-gray-700">
-                      Plan the most efficient, eco-friendly paths for your fleet
-                      or personal commute
+                      Generate optimized routes that reduce CO<sub>2</sub> emissions and increase efficiency
                     </p>
                   </div>
                 </div>
@@ -168,8 +166,7 @@ export default function HomePage() {
                 Data-Driven
               </h2>
               <p className="text-gray-700 text-center">
-                Our platform uses spatial data and operational patterns to
-                inform smarter route planning
+                Our models are trained on an eVED dataset of 9,500 real-world routes
               </p>
             </div>
             <div className="bg-white p-6 rounded-xl shadow-[0_0_15px_rgba(0,0,0,0.2)] transition-all duration-300 transform hover:-translate-y-2 w-full md:w-1/3">
@@ -178,8 +175,7 @@ export default function HomePage() {
                 Sustainable
               </h2>
               <p className="text-gray-700 text-center">
-                Our platform minimizes fuel consumption and emissions through
-                intelligent routing
+                Intelligent routing minimizes fuel usage and carbon emissions
               </p>
             </div>
             <div className="bg-white p-6 rounded-xl shadow-[0_0_15px_rgba(0,0,0,0.2)] transition-all duration-300 transform hover:-translate-y-2 w-full md:w-1/3">
@@ -188,8 +184,7 @@ export default function HomePage() {
                 Customizable
               </h2>
               <p className="text-gray-700 text-center">
-                Our tools can be tailored to your workflow to ensure seamless
-                integration
+                We collaborate with stakeholders to tailor our models to their data
               </p>
             </div>
           </div>
