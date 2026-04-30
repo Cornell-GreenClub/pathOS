@@ -31,7 +31,7 @@ const poppinsSemibold = localFont({
 
 export const metadata: Metadata = {
   title: 'pathOS',
-  description: 'Smarter routes, greener future',
+  description: 'Smarter Routes, Greener Future',
 };
 
 export default function RootLayout({

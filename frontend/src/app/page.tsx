@@ -48,8 +48,8 @@ export default function HomePage() {
           <div className="md:w-1/2 p-4">
             <div className="relative overflow-hidden rounded-lg transform hover:scale-105 transition-transform duration-300">
               <img
-                src="https://images.unsplash.com/photo-1465447142348-e9952c393450?w=800&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8M3x8cm9hZHxlbnwwfHwwfHx8MA%3D%3D"
-                alt="Ithaca Commons"
+                src="/images/highway-intersection.avif"
+                alt="Highway Intersection"
                 className="w-full md:w-[700px] h-auto md:h-[372px] aspect-video md:aspect-auto object-cover object-center rounded-lg shadow-2xl"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-gray-900 via-transparent to-transparent opacity-60"></div>
