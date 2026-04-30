@@ -139,7 +139,7 @@ const AboutPage = () => {
             Routing Machine
           </h3>
           <p className="poppins-regular text-lg text-gray-700 text-center">
-            Powered by AWS "Wake on Demand" 
+            Powered by AWS &quot;Wake on Demand&quot; 
             <br />
             architecture, slashing operating 
             <br />
