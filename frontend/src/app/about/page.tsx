@@ -52,7 +52,7 @@ const AboutPage = () => {
               Actionable
             </h1>
             <p className="poppins-regular text-xl text-gray-700 pt-[30px]">
-              We’re building a web-based routing tool that optimizes fuel consumption for 
+              We&apos;re building a web-based routing tool that optimizes fuel consumption for 
               transportation routes. While standard tools like Google Maps optimize point-to-point routing, 
               pathOS optimizes the order of the stops and accounts for real-world 
               factors like weight accumulation.
