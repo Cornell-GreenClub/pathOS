@@ -218,7 +218,7 @@ const ZoomControls = () => {
 //   Header      – title + km/mi toggle switch + close button
 //   Savings     – headline card: fuel/CO₂/distance saved + visual fuel bar
 //   Distance    – original vs optimized side-by-side
-//   Duration    – with ↑/↓ delta indicator
+//   Duration    – currently hidden from the analytics UI and exports
 //   Fuel        – with ↓ delta note
 //   CO₂         – original vs optimized
 //   Equivalents – 3-tab card: Original / Optimized / Per Year (×260 working days)
@@ -273,17 +273,8 @@ const AnalyticsPanel = ({ isOpen, onClose, metrics, formData, imperial, setImper
     hasOriginal && metrics.originalFuelLiters > 0
       ? (((metrics.originalFuelLiters - metrics.fuelLiters) / metrics.originalFuelLiters) * 100).toFixed(1)
       : null;
-  // Positive = optimized route took longer; negative = faster
-  const timeDeltaMin =
-    hasOriginal && metrics.durationMin != null && metrics.originalDurationMin != null
-      ? Math.round((metrics.durationMin - metrics.originalDurationMin) * 10) / 10
-      : null;
-
-  const formatDuration = (min: number | null) => {
-    if (min == null) return '—';
-    if (min >= 60) return `${Math.floor(min / 60)}h ${Math.round(min % 60)}m`;
-    return `${Math.round(min)}m`;
-  };
+  // Duration metrics are still returned by the backend, but intentionally not
+  // rendered or exported from the analytics panel.
 
   const treesTooltip = (co2Kg: number, action: 'emitted' | 'saved') =>
     `${formatNumber(toWeight(co2Kg, imperial)!, 1)} ${weightUnit} CO₂ ${action} ÷ ${treeCo2PerYear} ${weightUnit}/tree/yr = ${(Math.round(co2Kg / TREE_CO2_KG_PER_YEAR * 10) / 10).toFixed(1)} trees${action === 'emitted' ? ' needed to offset' : ''}.`;
@@ -332,13 +323,13 @@ const AnalyticsPanel = ({ isOpen, onClose, metrics, formData, imperial, setImper
       })),
       original: {
         distanceKm: metrics?.originalDistanceKm,
-        durationMin: metrics?.originalDurationMin,
+        // durationMin: metrics?.originalDurationMin,
         fuelLiters: metrics?.originalFuelLiters,
         co2Kg: metrics?.originalCo2Kg,
       },
       optimized: {
         distanceKm: metrics?.distanceKm,
-        durationMin: metrics?.durationMin,
+        // durationMin: metrics?.durationMin,
         fuelLiters: metrics?.fuelLiters,
         co2Kg: metrics?.co2Kg,
       },
@@ -376,7 +367,7 @@ const AnalyticsPanel = ({ isOpen, onClose, metrics, formData, imperial, setImper
       rows.push([]);
       rows.push(['Metric', 'Original', 'Optimized', 'Saved']);
       rows.push(['Distance (km)', metrics.originalDistanceKm ?? '—', metrics.distanceKm ?? '—', distanceSavedRaw ?? '—']);
-      rows.push(['Duration (min)', metrics.originalDurationMin ?? '—', metrics.durationMin ?? '—', '']);
+      // rows.push(['Duration (min)', metrics.originalDurationMin ?? '—', metrics.durationMin ?? '—', '']);
       rows.push(['Fuel (L)', metrics.originalFuelLiters ?? '—', metrics.fuelLiters ?? '—', fuelSavedRaw ?? '—']);
       rows.push(['CO2 (kg)', metrics.originalCo2Kg ?? '—', metrics.co2Kg ?? '—', co2SavedRaw ?? '—']);
     }
@@ -416,7 +407,6 @@ const AnalyticsPanel = ({ isOpen, onClose, metrics, formData, imperial, setImper
         </tr></thead>
         <tbody>
           <tr><td style="padding:6px 8px;font-size:13px;">Distance</td><td style="text-align:right;padding:6px 8px;">${metrics.originalDistanceKm ?? '—'} km</td><td style="text-align:right;padding:6px 8px;color:#034626;">${metrics.distanceKm ?? '—'} km</td><td style="text-align:right;padding:6px 8px;color:#16a34a;">${distanceSavedRaw != null ? `${distanceSavedRaw} km` : '—'}</td></tr>
-          <tr style="background:#f9fafb;"><td style="padding:6px 8px;font-size:13px;">Duration</td><td style="text-align:right;padding:6px 8px;">${metrics.originalDurationMin != null ? formatDuration(metrics.originalDurationMin) : '—'}</td><td style="text-align:right;padding:6px 8px;color:#034626;">${metrics.durationMin != null ? formatDuration(metrics.durationMin) : '—'}</td><td style="text-align:right;padding:6px 8px;color:#16a34a;">—</td></tr>
           <tr><td style="padding:6px 8px;font-size:13px;">Fuel</td><td style="text-align:right;padding:6px 8px;">${metrics.originalFuelLiters ?? '—'} L</td><td style="text-align:right;padding:6px 8px;color:#034626;">${metrics.fuelLiters ?? '—'} L</td><td style="text-align:right;padding:6px 8px;color:#16a34a;">${fuelSavedRaw != null ? `${fuelSavedRaw} L` : '—'}</td></tr>
           <tr style="background:#f9fafb;"><td style="padding:6px 8px;font-size:13px;">CO₂</td><td style="text-align:right;padding:6px 8px;">${metrics.originalCo2Kg ?? '—'} kg</td><td style="text-align:right;padding:6px 8px;color:#034626;">${metrics.co2Kg ?? '—'} kg</td><td style="text-align:right;padding:6px 8px;color:#16a34a;">${co2SavedRaw != null ? `${co2SavedRaw} kg` : '—'}</td></tr>
         </tbody>
@@ -552,34 +542,7 @@ const AnalyticsPanel = ({ isOpen, onClose, metrics, formData, imperial, setImper
               </div>
             </div>
 
-            {/* ── Duration ── */}
-            <div className="bg-gray-50 p-4 rounded-lg">
-              <h4 className="font-semibold mb-3">Duration</h4>
-              <div className="grid grid-cols-2 gap-4">
-                {hasOriginal && (
-                  <div>
-                    <p className="text-xs text-gray-500">Original</p>
-                    <p className="text-lg font-medium">{formatDuration(metrics.originalDurationMin)}</p>
-                  </div>
-                )}
-                <div>
-                  <p className="text-xs text-[#034626]">Optimized</p>
-                  <p className="text-lg font-medium text-[#034626]">{formatDuration(metrics.durationMin)}</p>
-                  {/* Blue delta — neutral color because time can go either way
-                      depending on route geometry vs fuel-cost trade-offs */}
-                  {timeDeltaMin != null && timeDeltaMin !== 0 && (
-                    <p className="text-xs mt-0.5 font-medium text-blue-600">
-                      {timeDeltaMin < 0
-                        ? `↓ ${formatDuration(Math.abs(timeDeltaMin))} faster`
-                        : `↑ ${formatDuration(timeDeltaMin)} slower`}
-                    </p>
-                  )}
-                  {timeDeltaMin === 0 && hasOriginal && (
-                    <p className="text-xs mt-0.5 text-gray-400">no change</p>
-                  )}
-                </div>
-              </div>
-            </div>
+            {/* Duration card hidden so Fuel and CO₂ move up naturally in the panel. */}
 
             {/* ── Fuel consumption ── */}
             {metrics.fuelLiters != null && (
@@ -997,10 +960,6 @@ const MapView = ({
             Inline IIFE keeps the savings derivation scoped — avoids polluting
             MapView's render scope with variables only used here. */}
         {metrics && (metrics.distanceKm != null || metrics.fuelLiters != null) && (() => {
-          const fmtDur = (min: number) =>
-            min >= 60
-              ? `${Math.floor(min / 60)}h ${Math.round(min % 60)}m`
-              : `${Math.round(min)}m`;
           const fuelSavedRaw =
             metrics.originalFuelLiters != null && metrics.fuelLiters != null
               ? Math.round((metrics.originalFuelLiters - metrics.fuelLiters) * 100) / 100
@@ -1026,12 +985,7 @@ const MapView = ({
                   <span className="text-[#034626] font-bold">{dispDist} {distUnit}</span>
                 </div>
               )}
-              {metrics.durationMin != null && (
-                <div className="bg-white rounded-lg px-3 py-2 shadow-lg text-sm font-medium">
-                  <span className="text-gray-500">Duration&nbsp;</span>
-                  <span className="text-[#034626] font-bold">{fmtDur(metrics.durationMin)}</span>
-                </div>
-              )}
+              {/* Duration pill hidden so remaining metric pills wrap evenly. */}
               {metrics.fuelLiters != null && (
                 <div className="bg-white rounded-lg px-3 py-2 shadow-lg text-sm font-medium">
                   <span className="text-gray-500">Fuel&nbsp;</span>
