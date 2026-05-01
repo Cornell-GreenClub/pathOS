@@ -70,7 +70,18 @@ The backend predicts fuel usage based on the fundamental physics of motor vehicl
 
 ---
 
-## 6. OSRM Setup
+## 6. Extensive Documentation
+
+For deeper dives into the specific systems and models powering pathOS, please refer to the comprehensive guides in the `documentation/` folder:
+
+* **[Fuel Consumption Model Guide](documentation/fuel_consumption_model_guide.md)**: Details the physics-informed hybrid model, datasets used (eVED & commercial), and instructions for retraining the model for new clients.
+* **[Simulated Annealing Guide](documentation/simulated_annealing_guide.md)**: Explains the algorithmic data flow, matrix construction, and the specific optimization methods used to account for load accumulation.
+* **[OSRM AWS Deployment Guide](documentation/osrm_aws_deployment_guide.md)**: A step-by-step walkthrough of the cost-saving "Wake on Demand" server architecture using AWS EC2, Lambda, and EventBridge.
+* **[Backend Deployment Guide](documentation/backend_deployment_guide.md)**: Covers the setup and deployment of the Flask Python API and its integration with the frontend and OSRM engine.
+
+---
+
+## 7. OSRM Setup
 
 To set up your local OSRM server, follow the [official OSRM Backend Guide](https://github.com/Project-OSRM/osrm-backend).
 
