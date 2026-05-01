@@ -267,8 +267,10 @@ class RouteOptimizer:
 
         params = pywrapcp.DefaultRoutingSearchParameters()
         params.first_solution_strategy = routing_enums_pb2.FirstSolutionStrategy.PATH_CHEAPEST_ARC
+        params.local_search_metaheuristic = routing_enums_pb2.LocalSearchMetaheuristic.GUIDED_LOCAL_SEARCH
+        params.time_limit.seconds = self.solver_time_limit_seconds
 
-        logging.info(f"\nSolving TSP on fuel matrix ({n} stops, open path 0 -> {n-1})...")
+        logging.info(f"\nSolving TSP on fuel matrix ({n} stops, open path 0 -> {n-1}) using GUIDED_LOCAL_SEARCH...")
         solution = routing.SolveWithParameters(params)
 
         if not solution:
