@@ -96,14 +96,14 @@ const AboutPage = () => {
             alt="Backend Icon"
           />
           <h3 className="poppins-semibold text-2xl text-gray-800 pt-[20px] pb-[10px] text-center">
-            Simulated
+            Simulated{' '}
             <br className="hidden md:block" />
             Annealing
           </h3>
           <p className="poppins-regular text-lg text-gray-700 text-center">
-            Utilizes Simulated Annealing to account 
+            Utilizes Simulated Annealing to account{' '}
             <br className="hidden md:block" />
-            for weight accumulation, achieving 
+            for weight accumulation, achieving{' '}
             <br className="hidden md:block" />
             100% success on test routes.
           </p>
@@ -115,14 +115,14 @@ const AboutPage = () => {
             alt="Fuel Icon"
           />
           <h3 className="poppins-semibold text-2xl text-gray-800 pt-[20px] pb-[10px] text-center">
-            Fuel Consumption 
+            Fuel Consumption{' '}
             <br className="hidden md:block" />
             Modeling
           </h3>
           <p className="poppins-regular text-lg text-gray-700 text-center">
-            Predicts consumption using drag, grade, 
+            Predicts consumption using drag, grade,{' '}
             <br className="hidden md:block" />
-            and friction with an average error 
+            and friction with an average error{' '}
             <br className="hidden md:block" />
             of only 150 mL per trip.
           </p>
@@ -134,14 +134,14 @@ const AboutPage = () => {
             alt="Map Icon"
           />
           <h3 className="poppins-semibold text-2xl text-gray-800 pt-[20px] pb-[10px] text-center">
-            Open Source
+            Open Source{' '}
             <br className="hidden md:block" />
             Routing Machine
           </h3>
           <p className="poppins-regular text-lg text-gray-700 text-center">
-            Powered by AWS &quot;Wake on Demand&quot; 
+            Powered by AWS &quot;Wake on Demand&quot;{' '}
             <br className="hidden md:block" />
-            architecture, slashing operating 
+            architecture, slashing operating{' '}
             <br className="hidden md:block" />
             costs by 90%.
           </p>
