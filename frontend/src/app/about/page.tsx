@@ -7,8 +7,8 @@ const AboutPage = () => {
       <Navbar />
       <div className="max-w-full mx-auto bg-gradient-to-br from-green-50 via-white to-green-50 ">
         {/* Section 1 */}
-        <section className="flex flex-col md:flex-row justify-center p-[49px] pt-[97px]">
-          <div className="w-full md:w-1/2 pr-[90px]">
+        <section className="flex flex-col md:flex-row justify-center p-6 pt-24 md:p-[49px] md:pt-[97px]">
+          <div className="w-full md:w-1/2 md:pr-[90px] mb-8 md:mb-0">
             <h1 className="poppins-bold text-5xl text-gray-900 leading-tight">
               Rethinking
               <span className="pathos-green"> Waste Transport</span>
@@ -36,7 +36,7 @@ const AboutPage = () => {
         </section>
 
         {/* Section 2 */}
-        <section className="flex flex-col md:flex-row justify-center p-[49px] pt-[97px]">
+        <section className="flex flex-col md:flex-row justify-center p-6 pt-12 md:p-[49px] md:pt-[97px]">
           <div className="w-full md:w-1/2 p-4 flex items-center justify-center">
             <img
               src="/images/pathos-graphic.png"
@@ -45,7 +45,7 @@ const AboutPage = () => {
             />
           </div>
 
-          <div className="w-full md:w-1/2 p-[49px] pl-[90px]">
+          <div className="w-full md:w-1/2 p-4 pt-8 md:p-[49px] md:pl-[90px]">
             <h1 className="poppins-bold text-5xl text-gray-900 leading-tight">
               Making
               <span className="pathos-green"> Impact </span>
@@ -76,7 +76,7 @@ const AboutPage = () => {
           top: '-1%',
         }}
       >
-        <div className="flex items-center justify-center flex-col py-[90px]">
+        <div className="flex items-center justify-center flex-col py-16 md:py-[90px] px-6">
           <h1 className="poppins-bold text-5xl text-gray-900 leading-tight">
             System <span className="pathos-green">Architecture</span>
           </h1>
@@ -88,8 +88,8 @@ const AboutPage = () => {
       </section>
 
       {/* Section 3 — Icons */}
-      <section className="flex flex-col md:flex-row justify-center items-center pt-[20px] pb-[180px] gap-x-1">
-        <div className="w-1/3 flex flex-col items-center justify-center px-4">
+      <section className="flex flex-col md:flex-row justify-center items-center pt-[20px] pb-24 md:pb-[180px] gap-y-12 md:gap-y-0 md:gap-x-1 px-4 md:px-0">
+        <div className="w-full md:w-1/3 flex flex-col items-center justify-center px-4">
           <img
             className="w-[75px] h-[75px]"
             src="/icons/backend.png"
@@ -97,18 +97,18 @@ const AboutPage = () => {
           />
           <h3 className="poppins-semibold text-2xl text-gray-800 pt-[20px] pb-[10px] text-center">
             Simulated
-            <br />
+            <br className="hidden md:block" />
             Annealing
           </h3>
           <p className="poppins-regular text-lg text-gray-700 text-center">
             Utilizes Simulated Annealing to account 
-            <br />
+            <br className="hidden md:block" />
             for weight accumulation, achieving 
-            <br />
+            <br className="hidden md:block" />
             100% success on test routes.
           </p>
         </div>
-        <div className="w-1/3 flex flex-col items-center justify-center px-4">
+        <div className="w-full md:w-1/3 flex flex-col items-center justify-center px-4">
           <img
             className="w-[75px] h-[75px]"
             src="/icons/fuel.png"
@@ -116,18 +116,18 @@ const AboutPage = () => {
           />
           <h3 className="poppins-semibold text-2xl text-gray-800 pt-[20px] pb-[10px] text-center">
             Fuel Consumption 
-            <br />
+            <br className="hidden md:block" />
             Modeling
           </h3>
           <p className="poppins-regular text-lg text-gray-700 text-center">
             Predicts consumption using drag, grade, 
-            <br />
+            <br className="hidden md:block" />
             and friction with an average error 
-            <br />
+            <br className="hidden md:block" />
             of only 150 mL per trip.
           </p>
         </div>
-        <div className="w-1/3 flex flex-col items-center justify-center px-4">
+        <div className="w-full md:w-1/3 flex flex-col items-center justify-center px-4">
           <img
             className="w-[75px] h-[75px]"
             src="/icons/map.png"
@@ -135,14 +135,14 @@ const AboutPage = () => {
           />
           <h3 className="poppins-semibold text-2xl text-gray-800 pt-[20px] pb-[10px] text-center">
             Open Source
-            <br />
+            <br className="hidden md:block" />
             Routing Machine
           </h3>
           <p className="poppins-regular text-lg text-gray-700 text-center">
             Powered by AWS &quot;Wake on Demand&quot; 
-            <br />
+            <br className="hidden md:block" />
             architecture, slashing operating 
-            <br />
+            <br className="hidden md:block" />
             costs by 90%.
           </p>
         </div>
