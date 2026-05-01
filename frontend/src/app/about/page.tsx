@@ -82,7 +82,7 @@ const AboutPage = () => {
           </h1>
           <p className="poppins-regular text-xl text-gray-700 pt-[20px] text-center">
             A modular, data-driven platform for emissions-optimized <br />
-            routing using fundamental physics and metaheuristics.
+            routing using fundamental physics and metaheuristics
           </p>
         </div>
       </section>
@@ -105,7 +105,7 @@ const AboutPage = () => {
             <br className="hidden md:block" />
             for weight accumulation, achieving{' '}
             <br className="hidden md:block" />
-            100% success on test routes.
+            100% success on test routes
           </p>
         </div>
         <div className="w-full md:w-1/3 flex flex-col items-center justify-center px-4">
@@ -124,7 +124,7 @@ const AboutPage = () => {
             <br className="hidden md:block" />
             and friction with an average error{' '}
             <br className="hidden md:block" />
-            of only 150 mL per trip.
+            of only 150 mL per trip
           </p>
         </div>
         <div className="w-full md:w-1/3 flex flex-col items-center justify-center px-4">
@@ -143,7 +143,7 @@ const AboutPage = () => {
             <br className="hidden md:block" />
             architecture, slashing operating{' '}
             <br className="hidden md:block" />
-            costs by 90%.
+            costs by 90%
           </p>
         </div>
       </section>
