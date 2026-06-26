@@ -558,8 +558,8 @@ const ExplorePage = () => {
               </h1>
               <div className="flex flex-col gap-1 text-gray-600 text-sm italic -mt-6 mb-8 poppins-regular text-center max-w-2xl px-4 mx-auto">
                 <p>We currently only support routes within the state of New York</p>
-                <p>The first route optimization may take up to 140 seconds as the routing server warms up</p>
-                <p>Subsequent routes will typically complete in under 15 seconds</p>
+                <p>The first non-sample route may take up to 2 minutes as the routing server warms up</p>
+                <p>Subsequent routes will typically generate in under 15 seconds</p>
               </div>
               <form
                 onSubmit={handleSubmit}
