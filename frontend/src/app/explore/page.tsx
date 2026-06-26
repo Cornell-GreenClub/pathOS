@@ -4,6 +4,7 @@ import dynamic from 'next/dynamic';
 import PlacesAutocomplete from './PlacesAutocomplete';
 import Footer from '../components/Footer';
 import Navbar from '../components/Navbar';
+import sampleRouteResponse from './sampleRouteResponse.json';
 
 // Dynamically import the map component with no Server-Side Rendering
 const MapView = dynamic(() => import('./MapView'), {
@@ -292,6 +293,59 @@ const ExplorePage = () => {
     setLoadingMessage('Optimizing...');
     setError(null);
     setElapsedSeconds(0);
+
+    // Check if optimizing the preset sample route to use cached data
+    const isPresetRoute = () => {
+      if (formData.stops.length !== presetRoute.stops.length) return false;
+      if (formData.vehicleWeightKg !== presetRoute.vehicleWeightKg) return false;
+      if (formData.fuelType !== presetRoute.fuelType) return false;
+      for (let i = 0; i < formData.stops.length; i++) {
+        const s1 = formData.stops[i];
+        const s2 = presetRoute.stops[i];
+        if (s1.location !== s2.location) return false;
+        if (s1.weightKg !== s2.weightKg) return false;
+        if (!s1.coords || !s2.coords) return false;
+        if (s1.coords.lat !== s2.coords.lat || s1.coords.lng !== s2.coords.lng) return false;
+      }
+      return true;
+    };
+
+    if (isPresetRoute()) {
+      try {
+        // Simulate a small loading delay for a premium feel
+        await new Promise((resolve) => setTimeout(resolve, 600));
+
+        setOriginalStops(formData.stops);
+        setFormData((prev) => ({
+          ...prev,
+          stops: sampleRouteResponse.optimizedStops,
+        }));
+
+        setMetrics({
+          distanceKm:           sampleRouteResponse.distanceKm,
+          durationMin:          sampleRouteResponse.durationMin,
+          fuelLiters:           sampleRouteResponse.fuelLiters,
+          co2Kg:                sampleRouteResponse.co2Kg,
+          originalDistanceKm:   sampleRouteResponse.originalDistanceKm,
+          originalDurationMin:  sampleRouteResponse.originalDurationMin,
+          originalFuelLiters:   sampleRouteResponse.originalFuelLiters,
+          originalCo2Kg:        sampleRouteResponse.originalCo2Kg,
+          matrixRunId:          sampleRouteResponse.matrixRunId,
+          modelLoaded:          sampleRouteResponse.modelLoaded,
+          modelR2:              sampleRouteResponse.modelR2,
+          originalRouteGeometry: sampleRouteResponse.originalRouteGeometry,
+        });
+
+        setRoute(sampleRouteResponse.routeGeometry as any);
+        setIsMapView(true);
+      } catch (err) {
+        console.error('Error loading preset route:', err);
+        setError('Failed to load sample route data.');
+      } finally {
+        setIsLoading(false);
+      }
+      return;
+    }
 
     const timeoutId = setTimeout(() => {
       setLoadingMessage('Waking up server...');
