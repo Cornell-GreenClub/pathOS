@@ -146,6 +146,31 @@ def health_check():
     return jsonify({"status": "ok"}), 200
 
 
+@app.route("/wake", methods=["GET"])
+def wake_osrm():
+    """
+    Fire-and-forget poke to start waking up the OSRM server.
+    Unlike optimize_route, this doesn't poll and block; it just triggers the start
+    so it warms up in the background while the user fills out the form.
+    """
+    if config.OSRM_WAKE_URL:
+        try:
+            headers = {"x-osrm-secret": config.OSRM_WAKE_SECRET}
+            # Send a quick request to the Lambda. A short timeout keeps it non-blocking.
+            requests.get(config.OSRM_WAKE_URL, headers=headers, timeout=3)
+            logging.info("OSRM wake poke sent successfully.")
+            return jsonify({"status": "poke_sent"}), 200
+        except requests.exceptions.Timeout:
+            logging.info("OSRM wake poke request sent and timed out (expected for fire-and-forget).")
+            return jsonify({"status": "poke_sent_timeout"}), 200
+        except Exception as e:
+            logging.warning(f"Failed to send OSRM wake poke: {e}")
+            return jsonify({"status": "error", "message": str(e)}), 500
+    else:
+        logging.info("OSRM_WAKE_URL not set, skipping wake poke.")
+        return jsonify({"status": "no_wake_configured"}), 200
+
+
 @app.route("/run/<run_id>", methods=["GET"])
 def get_run(run_id):
     """Return metadata for a saved optimization run."""
