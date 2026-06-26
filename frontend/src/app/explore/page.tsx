@@ -320,7 +320,7 @@ const ExplorePage = () => {
         fetch(`${backendUrl}/wake`).catch(err => console.log('OSRM wake prefire failed', err));
 
         // Simulate a small loading delay
-        await new Promise((resolve) => setTimeout(resolve, 600));
+        await new Promise((resolve) => setTimeout(resolve, 3000));
 
         setOriginalStops(formData.stops);
         setFormData((prev) => ({
