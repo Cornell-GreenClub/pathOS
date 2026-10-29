@@ -674,7 +674,7 @@ const ExplorePage = () => {
                       <div className="flex items-center gap-1 flex-shrink-0">
                         <input
                           type="number"
-                          value={stop.weightKg === 0 ? '' : stop.weightKg}
+                          value={stop.weightKg === 0 ? '0' : stop.weightKg}
                           onChange={(e) => handleWeightChange(index, e.target.value)}
                           min={0}
                           step={0.01}
