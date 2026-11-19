@@ -332,6 +332,18 @@ def optimize_route():
                 logging.warning(f"Could not save matrices: {save_err}")
                 matrix_path = None
 
+            # Generate distance-minimized route
+            distance_route = optimizer._solve_tsp(
+                matrices['distance_matrix'],
+                location_names
+            )
+
+            # Generate time-minimized route
+            time_route = optimizer._solve_tsp(
+                matrices['duration_matrix'],
+                location_names
+            )       
+
             # ── Run optimizer ─────────────────────────────────────────────────
             reordered = optimizer.optimize_route(
                 fuel_matrix=matrices['fuel_matrix'],

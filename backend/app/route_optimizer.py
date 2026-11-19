@@ -233,7 +233,7 @@ class RouteOptimizer:
 
     # ==================== TSP SOLVER ====================
 
-    def _solve_tsp(self, fuel_matrix, location_names):
+    def _solve_tsp(self, cost_matrix, location_names):
         """
         Solves open-path TSP: fixed start at index 0, fixed end at index n-1.
 
@@ -243,11 +243,11 @@ class RouteOptimizer:
         the solver into the shape: 0 -> [middle stops] -> n-1 -> depot (free arc).
         The phantom return leg is stripped before the route is returned.
         """
-        n = len(fuel_matrix)
+        n = len(cost_matrix)
         INF = 10 ** 9
 
         # Convert floats to ints — OR-Tools constraint solver requires integer costs.
-        int_matrix = [[int(round(fuel_matrix[i][j] * FUEL_SCALE))
+        int_matrix = [[int(round(cost_matrix[i][j] * FUEL_SCALE))
                         for j in range(n)] for i in range(n)]
 
         # Block middle stops (1..n-2) from returning to depot
